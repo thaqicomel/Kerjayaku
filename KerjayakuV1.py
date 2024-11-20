@@ -393,15 +393,35 @@ def create_contact_page(styles):
 
     # Profile photo
     if os.path.exists("mizah.jpg"):
+        description_style = ParagraphStyle(
+            'ImageDescription',
+            parent=styles['content'],
+            fontSize=10,
+            textColor=colors.HexColor('#1a1a1a'),
+            alignment=TA_LEFT,
+            leading=14
+        )
+        
+        description_text = Paragraph("""KerjayaKu: AI-Driven Career Guidance for a Strategic Future<br/>
+            KerjayaKu is an AI-powered portal designed to help fresh graduates and young professionals strategically navigate their career development journey. 
+            By integrating cutting-edge artificial intelligence, KerjayaKu assesses your education profile, aspirations, personality traits, current skillset, 
+            and problem-solving abilities, along with social-emotional learning skills. It then delivers personalized insights to help you stay competitive 
+            in today's dynamic job market.""", description_style)
+
         elements.append(
             Table(
-                [[Image("mizah.jpg", width=2*inch, height=2*inch)]],
-                colWidths=[7*inch],
+                [
+                    [Image("mizah.jpg", width=1*inch, height=1*inch), ""],  # Image row
+                    [description_text, ""]  # Description row below image
+                ],
+                colWidths=[1.5*inch, 5.5*inch],
                 style=TableStyle([
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Align image to left
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                     ('TOPPADDING', (0, 0), (-1, -1), 10),
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                    ('SPAN', (0, 1), (1, 1)),  # Span description across both columns
                 ])
             )
         )
@@ -461,21 +481,21 @@ def create_contact_page(styles):
                 ('TOPPADDING', (0, 0), (-1, -1), 15),
             ])
         ),
-        Spacer(1, 0.2*inch),
-        Table(
-            [[Paragraph("© 2024 Centre for AI Innovation. All rights reserved.", 
-                       ParagraphStyle(
-                           'Footer',
-                           parent=styles['content'],
-                           alignment=TA_CENTER,
-                           textColor=colors.HexColor('#666666'),
-                           fontSize=8
-                       ))]],
-            colWidths=[7*inch],
-            style=TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ])
-        )
+        # Spacer(1, 0.2*inch),
+        # Table(
+        #     [[Paragraph("© 2024 Centre for AI Innovation. All rights reserved.", 
+        #                ParagraphStyle(
+        #                    'Footer',
+        #                    parent=styles['content'],
+        #                    alignment=TA_CENTER,
+        #                    textColor=colors.HexColor('#666666'),
+        #                    fontSize=8
+        #                ))]],
+        #     colWidths=[7*inch],
+        #     style=TableStyle([
+        #         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        #     ])
+        # )
     ])
     
     return elements
@@ -516,12 +536,12 @@ def generate_pdf(analysis1, analysis2, personal_info, work_experience):
     
     elements.append(Paragraph("Career Recommendations", styles['heading']))
     process_section_content(analysis2, styles, elements)
-    elements.append(PageBreak())
+    # elements.append(PageBreak())
 
-    elements.extend(create_kerjayaku_info_page(styles))
+    # elements.extend(create_kerjayaku_info_page(styles))
 
     elements.extend(create_contact_page(styles))
-    elements.append(PageBreak())
+    # elements.append(PageBreak())
 
     # Build PDF
     doc.build(elements, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
