@@ -10,6 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+import re
 
 # Constants
 # Long Description
@@ -62,11 +63,9 @@ LANGUAGES = [
     "Others"
 ]
 ##PDF
-
-
 def create_custom_styles():
     """
-    Create enhanced custom styles for the PDF document with improved typography
+    Create enhanced custom styles including all required styles
     """
     styles = getSampleStyleSheet()
     
@@ -76,7 +75,10 @@ def create_custom_styles():
         'secondary': colors.HexColor('#4A5568'),    # Secondary text
         'accent': colors.HexColor('#2B6CB0'),       # Titles and headings
         'background': colors.HexColor('#F7FAFC'),   # Background elements
-        'divider': colors.HexColor('#E2E8F0')       # Lines and dividers
+        'divider': colors.HexColor('#E2E8F0'),      # Lines and dividers
+        'bullet': colors.HexColor('#3182CE'),       # Bullet points
+        'highlight_bg': colors.HexColor('#EBF8FF'), # Highlight box background
+        'highlight_border': colors.HexColor('#90CDF4') # Highlight box border
     }
     
     return {
@@ -121,19 +123,237 @@ def create_custom_styles():
             leading=16,
             firstLineIndent=20
         ),
-        'bullet': ParagraphStyle(
-            'BulletPoint',
+        'bullet_main': ParagraphStyle(
+            'BulletMain',
             parent=styles['Normal'],
             fontSize=11,
-            leftIndent=20,
-            bulletIndent=12,
+            textColor=custom_colors['primary'],
+            leftIndent=30,
+            bulletIndent=15,
+            spaceBefore=6,
+            spaceAfter=6,
+            fontName='Helvetica-Bold',
+            leading=16,
+            bulletColor=custom_colors['bullet']
+        ),
+        'bullet_sub': ParagraphStyle(
+            'BulletSub',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=custom_colors['secondary'],
+            leftIndent=45,
+            bulletIndent=30,
             spaceBefore=3,
             spaceAfter=3,
             fontName='Helvetica',
+            leading=14
+        ),
+        'bullet_subsub': ParagraphStyle(
+            'BulletSubSub',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=custom_colors['secondary'],
+            leftIndent=60,
+            bulletIndent=45,
+            spaceBefore=2,
+            spaceAfter=2,
+            fontName='Helvetica',
+            leading=14
+        ),
+        'highlight': ParagraphStyle(
+            'HighlightContent',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=custom_colors['primary'],
+            alignment=TA_LEFT,
+            spaceBefore=0,
+            spaceAfter=0,
+            fontName='Helvetica',
             leading=16
+        ),
+        'point_title': ParagraphStyle(
+            'PointTitle',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=custom_colors['accent'],
+            fontName='Helvetica-Bold',
+            leading=16
+        ),
+        'toc_title': ParagraphStyle(
+            'TOCTitle',
+            parent=styles['Title'],
+            fontSize=18,
+            textColor=custom_colors['accent'],
+            spaceAfter=20,
+            alignment=TA_LEFT,
+            fontName='Helvetica-Bold'
+        ),
+        'toc_entry': ParagraphStyle(
+            'TOCEntry',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=custom_colors['primary'],
+            fontName='Helvetica',
+            leading=16,
+            spaceBefore=6,
+            spaceAfter=6
+        ),
+        'toc_entry_level2': ParagraphStyle(
+            'TOCEntryLevel2',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=custom_colors['secondary'],
+            fontName='Helvetica',
+            leading=14,
+            leftIndent=20,
+            spaceBefore=4,
+            spaceAfter=4
         )
     }
 
+def create_highlight_box(text, styles, include_number=None):
+    """Create highlighted box for key content with optional numbering"""
+    # Default background and border colors from styles
+    bg_color = colors.HexColor('#EBF8FF')  # Light blue background
+    border_color = colors.HexColor('#90CDF4')  # Blue border
+    
+    content = text
+    if include_number is not None:
+        content = f"Point {include_number}: {text}"
+    
+    return Table(
+        [[Paragraph(clean_text(content), styles['highlight'])]],
+        colWidths=[7*inch],
+        style=TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), bg_color),
+            ('BOX', (0, 0), (-1, -1), 1, border_color),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('LEFTPADDING', (0, 0), (-1, -1), 15),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+        ])
+    )
+def process_section_content(content, styles, elements):
+    """
+    Process section content with enhanced bullet points and highlight boxes
+    """
+    paragraphs = []
+    current_paragraph = []
+    bullet_level = 0
+    current_point_number = None
+    
+    # Split content into lines and process
+    lines = content.strip().split('\n')
+    for i, line in enumerate(lines):
+        clean_line = clean_text(line)
+        if not clean_line:
+            continue
+            
+        # Check for numbered points (1., 2., etc. at start of line)
+        if re.match(r'^\d+\.', clean_line):
+            # If we were building a paragraph, add it now
+            if current_paragraph:
+                paragraphs.append((' '.join(current_paragraph), 'normal', None))
+                current_paragraph = []
+            
+            # Extract point number and content
+            point_num = int(clean_line.split('.')[0])
+            point_content = clean_line[clean_line.find('.')+1:].strip()
+            
+            # Add as a highlighted point
+            paragraphs.append((point_content, 'highlight', point_num))
+            current_point_number = point_num
+            
+        # Check for sub-bullets under the main points
+        elif clean_line.startswith(('•', '-', '*')) or re.match(r'^\s+[•\-\*]', clean_line):
+            if current_paragraph:
+                paragraphs.append((' '.join(current_paragraph), 'normal', None))
+                current_paragraph = []
+            
+            # Determine indentation level
+            indent_level = len(line) - len(line.lstrip())
+            if indent_level > 8:
+                bullet_level = 2  # Sub-sub bullet
+            elif indent_level > 4:
+                bullet_level = 1  # Sub bullet
+            else:
+                bullet_level = 0  # Main bullet
+            
+            # Format bullet point
+            text = clean_line.lstrip('•-* ')
+            bullet_text = f"• {text}"
+            paragraphs.append((bullet_text, f'bullet_{bullet_level}', None))
+            
+        else:
+            # Reset point number for non-point content
+            if not line.strip().endswith(':'):  # Don't reset for section headers
+                current_point_number = None
+            current_paragraph.append(clean_line)
+    
+    # Add any remaining paragraph
+    if current_paragraph:
+        paragraphs.append((' '.join(current_paragraph), 'normal', None))
+    
+    # Create styled elements
+    for text, style_type, point_num in paragraphs:
+        if style_type == 'highlight':
+            elements.extend([
+                Spacer(1, 12),
+                create_highlight_box(text, styles, point_num),
+                Spacer(1, 12)
+            ])
+        elif style_type.startswith('bullet_'):
+            level = int(style_type.split('_')[1])
+            style_name = ['bullet_main', 'bullet_sub', 'bullet_subsub'][level]
+            elements.append(Paragraph(clean_text(text), styles[style_name]))
+        else:
+            if len(text) > 50:  # Only add as content if it's a substantial paragraph
+                elements.extend([
+                    Paragraph(clean_text(text), styles['content']),
+                    Spacer(1, 8)
+                ])
+
+def generate_pdf(analysis1, analysis2, personal_info, work_experience):
+    """Generate PDF with enhanced formatting and highlight boxes"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=inch,
+        leftMargin=inch,
+        topMargin=1.5*inch,
+        bottomMargin=inch
+    )
+    
+    styles = create_custom_styles()
+    elements = []
+    
+    # Front Page (remains the same)
+    elements.extend(create_front_page(styles, personal_info))
+    
+    # Experience Section with highlight boxes for each experience type
+    elements.append(Paragraph("Professional Experience", styles['heading']))
+    for exp_type, details in work_experience.items():
+        if details.get('description'):
+            elements.extend([
+                Paragraph(clean_text(details['title']), styles['subheading']),
+                create_highlight_box(clean_text(details['description']), styles),
+                Spacer(1, 0.2*inch)
+            ])
+    elements.append(PageBreak())
+    
+    # Analysis Sections with highlight boxes for key points
+    elements.append(Paragraph("Initial Assessment", styles['heading']))
+    process_section_content(analysis1, styles, elements)
+    elements.append(PageBreak())
+    
+    elements.append(Paragraph("Career Recommendations", styles['heading']))
+    process_section_content(analysis2, styles, elements)
+    
+    # Build PDF
+    doc.build(elements, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
+    buffer.seek(0)
+    return buffer
 def clean_text(text):
     """Clean text by thoroughly removing markdown formatting"""
     if not text:
@@ -161,61 +381,6 @@ def clean_text(text):
     # Normalize spaces
     text = ' '.join(text.split())
     return text.strip()
-
-
-def process_section_content(content, styles, elements):
-    """
-    Process section content with enhanced markdown cleaning
-    """
-    paragraphs = []
-    current_paragraph = []
-    
-    # Split content into lines and process
-    lines = content.strip().split('\n')
-    for line in lines:
-        # Apply thorough cleaning to each line
-        clean_line = clean_text(line)
-        if not clean_line:
-            continue
-            
-        # Check if this is a bullet point
-        if clean_line.startswith('•'):
-            # If we were building a paragraph, add it now
-            if current_paragraph:
-                paragraphs.append((' '.join(current_paragraph), False))
-                current_paragraph = []
-            # Add bullet point
-            paragraphs.append((clean_line, True))
-        else:
-            # Check if this might be a section header
-            if len(clean_line) < 50 and clean_line.endswith(':'):
-                if current_paragraph:
-                    paragraphs.append((' '.join(current_paragraph), False))
-                    current_paragraph = []
-                paragraphs.append((clean_line, 'header'))
-            else:
-                current_paragraph.append(clean_line)
-    
-    # Add any remaining paragraph
-    if current_paragraph:
-        paragraphs.append((' '.join(current_paragraph), False))
-    
-    # Create styled elements with cleaned text
-    for text, is_bullet in paragraphs:
-        if is_bullet == 'header':
-            elements.extend([
-                Spacer(1, 12),
-                Paragraph(clean_text(text), styles['subheading']),
-                Spacer(1, 6)
-            ])
-        elif is_bullet:
-            elements.append(Paragraph(clean_text(text), styles['bullet']))
-        else:
-            elements.extend([
-                Paragraph(clean_text(text), styles['content']),
-                Spacer(1, 8)
-            ])
-
 def create_dynamic_toc(elements, styles, content_sections):
     """Create dynamic table of contents with enhanced styling"""
     elements.append(Table([['']], colWidths=[7*inch], rowHeights=[2],
@@ -332,60 +497,6 @@ def create_front_page(styles, personal_info):
     ])
     return elements
 
-def generate_pdf(analysis1, analysis2, personal_info, work_experience):
-    """Generate a PDF report with enhanced text cleaning"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=inch,
-        leftMargin=inch,
-        topMargin=1.5*inch,
-        bottomMargin=inch
-    )
-    
-    styles = create_custom_styles()
-    elements = []
-    
-    # Front Page
-    elements.extend(create_front_page(styles, personal_info))
-    
-    # Experience Section
-    elements.append(Paragraph("Professional Experience", styles['heading']))
-    for exp_type, details in work_experience.items():
-        if details.get('description'):
-            elements.extend([
-                Paragraph(clean_text(details['title']), styles['subheading']),
-                # Only add period if it exists
-                *(
-                    [Paragraph(f"Period: {details['period']}", styles['content'])]
-                    if 'period' in details and details['period']
-                    else []
-                ),
-                Paragraph(clean_text(details['description']), styles['content']),
-                Spacer(1, 0.2*inch)
-            ])
-    elements.append(PageBreak())
-    
-    # Analysis Sections
-    elements.append(Paragraph("Initial Assessment", styles['heading']))
-    for para in clean_text(analysis1).split('\n\n'):
-        if para.strip():
-            elements.append(Paragraph(clean_text(para), styles['content']))
-    elements.append(PageBreak())
-    
-    elements.append(Paragraph("Career Recommendations", styles['heading']))
-    for para in clean_text(analysis2).split('\n\n'):
-        if para.strip():
-            if para.startswith(('•', '-')):
-                elements.append(Paragraph(f"• {clean_text(para.lstrip('•- '))}", styles['bullet']))
-            else:
-                elements.append(Paragraph(clean_text(para), styles['content']))
-    
-    # Build PDF
-    doc.build(elements, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
-    buffer.seek(0)
-    return buffer
 def initialize_session_state():
     if 'current_step' not in st.session_state:
         st.session_state.current_step = 'personal'
@@ -652,9 +763,9 @@ Profile:
 
 Provide a detailed analysis of the above findings in 350 words with real examples or references and an additional analysis on:
 
-1) based on the profile of the person given earlier, and the career aspirations given, what are the required skills and competencies that are needed for this person  to have? Explain in 350 words with examples and highlight any potential discrepancies.
+1) based on the profile of the person given earlier, and the career aspirations given, what are the required skills and competencies that are needed for this person  to have? Explain in 1000 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points(numbering) with long examples
 
-2) based on the profile of the person given earlier, and the career aspirations given, what are the required personality or attributes that are needed for this person  to have? Explain in 350 words with examples and highlight any potential discrepancies. """
+2) based on the profile of the person given earlier, and the career aspirations given, what are the required personality or attributes that are needed for this person  to have? Explain in 1000 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points points(numbering) with long examples """
 
     try:
         response = client.chat.completions.create(
@@ -676,8 +787,8 @@ Profile:
 {json.dumps(user_data, indent=2)}
 
 Provide structured analysis covering:
-1. Summarize key characteristics in 350 words
-2. Identify key strengths and advantages"""
+1. Summarize key characteristics in 500 words
+2. Identify key strengths and advantages. Do it in 5 points(numbering) with example"""
 
     try:
         response = client.chat.completions.create(
@@ -696,7 +807,7 @@ def get_ai_analysis(user_data, api_key, is_initial=True):
     prompt = f"""{'Initial assessment' if is_initial else 'Career recommendations'} for:
     {json.dumps(user_data, indent=2)}
     
-    Provide a detailed {'assessment' if is_initial else 'set of recommendations'} in 350 words."""
+    Provide a detailed {'assessment' if is_initial else 'set of recommendations'} in 1500 words."""
     
     try:
         response = client.chat.completions.create(
