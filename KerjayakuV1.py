@@ -312,6 +312,173 @@ def process_section_content(content, styles, elements):
                     Paragraph(clean_text(text), styles['content']),
                     Spacer(1, 8)
                 ])
+def create_kerjayaku_info_page(styles):
+    """Create the KerjayaKu information page"""
+    elements = []
+    
+    # Title
+    elements.append(Paragraph("KerjayaKu: AI-Driven Career Guidance for a Strategic Future", styles['heading']))
+    elements.append(Spacer(1, 0.5*inch))
+    
+    # Introduction
+    intro_text = """KerjayaKu is an AI-powered portal designed to help fresh graduates and young professionals strategically navigate their career development journey. By integrating cutting-edge artificial intelligence, KerjayaKu assesses your education profile, aspirations, personality traits, current skillset, and problem-solving abilities, along with social-emotional learning skills. It then delivers personalized insights to help you stay competitive in today's dynamic job market."""
+    elements.append(Paragraph(intro_text, styles['content']))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Key Features Section
+    elements.append(Paragraph("Key Features of KerjayaKu", styles['subheading']))
+    
+    # Feature 1
+    elements.append(Paragraph("1. Gap Identification", styles['point_title']))
+    feature1_text = """KerjayaKu evaluates your existing skills and compares them to the competencies required for your desired career path. By identifying gaps in technical, soft, and strategic skills, the platform provides a clear roadmap for improvement."""
+    elements.append(Paragraph(feature1_text, styles['content']))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Feature 2
+    elements.append(Paragraph("2. Reskilling and Upskilling Recommendations", styles['point_title']))
+    feature2_text = """Based on AI-driven analytics, KerjayaKu suggests relevant courses, certifications, and training programs that align with your career goals. This ensures you are continually learning skills that are in demand and future-proof."""
+    elements.append(Paragraph(feature2_text, styles['content']))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Feature 3
+    elements.append(Paragraph("3. Portfolio Building", styles['point_title']))
+    feature3_text = """The portal guides you in building a robust professional portfolio, highlighting projects, experiences, and skills that showcase your readiness for your dream roles. This feature enhances your ability to stand out in competitive job applications."""
+    elements.append(Paragraph(feature3_text, styles['content']))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Feature 4
+    elements.append(Paragraph("4. Employer Expectations", styles['point_title']))
+    feature4_text = """KerjayaKu pinpoints value-added competencies that employers look for in specific roles. You'll receive tailored suggestions to develop qualities like leadership, critical thinking, adaptability, and innovation."""
+    elements.append(Paragraph(feature4_text, styles['content']))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Feature 5
+    elements.append(Paragraph("5. Strategic Career Direction", styles['point_title']))
+    feature5_text = """Through personality and aspiration mapping, the platform ensures your career development plan aligns with both your passions and the market's needs, empowering you to pursue jobs where you'll thrive."""
+    elements.append(Paragraph(feature5_text, styles['content']))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Why It Matters Section
+    elements.append(Paragraph("Why It Matters for Young Professionals", styles['subheading']))
+    why_text = """Fresh graduates often struggle to transition from academia to the workforce due to a lack of clarity in skill requirements and strategic career planning. KerjayaKu bridges this gap by offering personalized, actionable insights to help you reskill, upskill, and showcase your abilities effectively. With its AI-driven precision, the portal provides a roadmap to build confidence, enhance employability, and unlock opportunities tailored to your goals."""
+    elements.append(Paragraph(why_text, styles['content']))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Conclusion
+    conclusion_text = """KerjayaKu equips you not just for a job, but for a career that aligns with your aspirations and the future of work."""
+    elements.append(Paragraph(conclusion_text, styles['content']))
+    
+    return elements
+def create_contact_page(styles):
+    """Create a beautifully designed contact page with fixed sizing."""
+    elements = []
+    
+    # Add a page break before contact page
+    elements.append(PageBreak())
+    
+    # Create a colored background header
+    elements.append(
+        Table(
+            [[Paragraph("Get in Touch", styles['heading'])]], 
+            colWidths=[7*inch],
+            style=TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F0F9FF')),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 20),
+                ('TOPPADDING', (0, 0), (-1, -1), 20),
+                ('LEFTPADDING', (0, 0), (-1, -1), 30),
+            ])
+        )
+    )
+    elements.append(Spacer(1, 0.3*inch))
+
+    # Profile photo
+    if os.path.exists("mizah.jpg"):
+        elements.append(
+            Table(
+                [[Image("mizah.jpg", width=2*inch, height=2*inch)]],
+                colWidths=[7*inch],
+                style=TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                ])
+            )
+        )
+        elements.append(Spacer(1, 0.3*inch))
+
+    # Contact information table
+    contact_table_data = [
+        # Label Cell, Value Cell
+        [Paragraph("Address:", styles['content']),
+         Paragraph("Centre for AI Innovation (CEAI) @Kuala Lumpur,\nc/o MyFinB (M) Sdn Bhd,\nLevel 13A, Menara Tokio Marine,\n189 Jalan Tun Razak, Hampshire Park,\n50450 Kuala Lumpur, Malaysia", styles['content'])],
+        
+        [Paragraph("Tel:", styles['content']),
+         Paragraph("+601117695760", styles['content'])],
+        
+        [Paragraph("Email:", styles['content']),
+         Paragraph('<link href="mailto:hamizah@ceaiglobal.com"><font color="#2563EB">hamizah@ceaiglobal.com</font></link>', styles['content'])],
+        
+        [Paragraph("Website:", styles['content']),
+         Paragraph('<link href="https://www.google.com/maps"><font color="#2563EB">www.ceaiglobal.com</font></link>', styles['content'])]
+    ]
+
+    # Create the contact information table
+    contact_table = Table(
+        contact_table_data,
+        colWidths=[1.5*inch, 5.8*inch],
+        style=TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#FFFFFF')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2B6CB0')),  # Blue color for labels
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('LEFTPADDING', (0, 0), (-1, -1), 15),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+        ])
+    )
+    
+    elements.append(contact_table)
+    
+    # Footer
+    elements.extend([
+        Spacer(1, 0.5*inch),
+        Table(
+            [[Paragraph("Thank you for your interest!", 
+                       ParagraphStyle(
+                           'ThankYou',
+                           parent=styles['subheading'],
+                           alignment=TA_CENTER,
+                           textColor=colors.HexColor('#2B6CB0')
+                       ))]],
+            colWidths=[7*inch],
+            style=TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F0F9FF')),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                ('TOPPADDING', (0, 0), (-1, -1), 15),
+            ])
+        ),
+        Spacer(1, 0.2*inch),
+        Table(
+            [[Paragraph("© 2024 Centre for AI Innovation. All rights reserved.", 
+                       ParagraphStyle(
+                           'Footer',
+                           parent=styles['content'],
+                           alignment=TA_CENTER,
+                           textColor=colors.HexColor('#666666'),
+                           fontSize=8
+                       ))]],
+            colWidths=[7*inch],
+            style=TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ])
+        )
+    ])
+    
+    return elements
 
 def generate_pdf(analysis1, analysis2, personal_info, work_experience):
     """Generate PDF with enhanced formatting and highlight boxes"""
@@ -349,7 +516,13 @@ def generate_pdf(analysis1, analysis2, personal_info, work_experience):
     
     elements.append(Paragraph("Career Recommendations", styles['heading']))
     process_section_content(analysis2, styles, elements)
-    
+    elements.append(PageBreak())
+
+    elements.extend(create_kerjayaku_info_page(styles))
+
+    elements.extend(create_contact_page(styles))
+    elements.append(PageBreak())
+
     # Build PDF
     doc.build(elements, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
     buffer.seek(0)
@@ -761,11 +934,11 @@ def get_ai_analysis2(user_data, api_key):
 Profile:
 {json.dumps(user_data, indent=2)}
 
-Provide a detailed analysis of the above findings in 350 words with real examples or references and an additional analysis on:
+Provide a detailed analysis of the above findings in 1000 words with real examples or references and an additional analysis on:
 
-1) based on the profile of the person given earlier, and the career aspirations given, what are the required skills and competencies that are needed for this person  to have? Explain in 1000 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points(numbering) with long examples
+1) based on the profile of the person given earlier, and the career aspirations given, what are the required skills and competencies that are needed for this person  to have? Explain in 700 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points(numbering) with long examples
 
-2) based on the profile of the person given earlier, and the career aspirations given, what are the required personality or attributes that are needed for this person  to have? Explain in 1000 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points points(numbering) with long examples """
+2) based on the profile of the person given earlier, and the career aspirations given, what are the required personality or attributes that are needed for this person  to have? Explain in 700 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points points(numbering) with long examples """
 
     try:
         response = client.chat.completions.create(
