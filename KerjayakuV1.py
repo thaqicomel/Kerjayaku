@@ -460,6 +460,15 @@ def process_content(content, styles, elements):
         clean_para = clean_text(para)
         if not clean_para:
             continue
+
+        if "Skills and Competencies" in clean_para:
+            elements.append(Paragraph(clean_para, styles['subheading']))  # Add as a subheading
+            continue
+
+        if "Compatible Personality and Behavioral Insights" in clean_para:
+            elements.append(PageBreak())  # Add a page break
+            elements.append(Paragraph(clean_para, styles['subheading']))  # Add as a subheading
+            continue
         
         # Handle numbered points
         point_match = re.match(r'^\d+\.?\s+(.+)', clean_para)
@@ -1098,15 +1107,17 @@ def get_ai_analysis1(user_data, api_key):
 Profile:
 {user_data_str}
 
-Provide structured analysis covering:
-1. Summarize key characteristics in 500 words
-2. Identify key strengths and advantages. Do it in 5 points(numbering) with example"""
+Provide structured analysis within **400 words** covering:
+1. A concise summary of key characteristics in **250 words**.
+2. Key strengths and advantages in **5 points (150 words total)** with brief examples."""
+
 
     try:
         response = client.chat.completions.create(
             model="gpt-4-turbo-preview",
             messages=[{"role": "user", "content": prompt.encode('utf-8').decode('utf-8')}],
-            temperature=0.7
+            temperature=0.7,
+            max_tokens=533  #limitoutput
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -1128,17 +1139,18 @@ Profile:
 Skills and Personality for this user to have:
 {analyst}
 
-Provide a detailed analysis of the above findings in 1000 words with real examples or references and an additional analysis on:
+Provide a detailed analysis of the above findings in **600 words** with real examples or references and an additional analysis on:
 
-1) based on the profile of the person given earlier, and the Skills and Personality given, what are the REQUIRED Skills and Competencies? Explain in 700 words with real world examples and highlight any potential discrepancies. Do it in exactly 5 points(numbering) with long examples.
+1) based on the profile of the person given earlier, and the Skills and Personality given, what are the REQUIRED Skills and Competencies? Explain in **300 words** with real world examples and highlight any potential discrepancies. Do it in exactly 5 points(numbering) with long examples.
 
-2) based on the profile of the person given earlier, and the Skills and Personality given, what are the REQUIRED Compatible Personality and Behavioral Insights? Explain in 700 words with real world examples and highlight any potential discrepancies. Do it in exactly 5 points points(numbering) with long examples."""
+2) based on the profile of the person given earlier, and the Skills and Personality given, what are the REQUIRED Compatible Personality and Behavioral Insights? Explain in **300 words** with real world examples and highlight any potential discrepancies. Do it in exactly 5 points points(numbering) with long examples."""
 
     try:
         response = client.chat.completions.create(
             model="gpt-4-turbo-preview",
             messages=[{"role": "user", "content": prompt.encode('utf-8').decode('utf-8')}],
-            temperature=0.7
+            temperature=0.7,
+            max_tokens=800
         )
         return response.choices[0].message.content
     except Exception as e:
