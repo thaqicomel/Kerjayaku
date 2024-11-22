@@ -11,7 +11,9 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 import re
-
+import tempfile
+from PIL import Image as PILImage
+import io
 # Constants
 # Long Description
 long_description = """
@@ -63,255 +65,98 @@ LANGUAGES = [
     "Others"
 ]
 ##PDF
-def create_custom_styles():
-    """
-    Create enhanced custom styles including all required styles
-    """
-    styles = getSampleStyleSheet()
-    
-    # Define modern color scheme
-    custom_colors = {
-        'primary': colors.HexColor('#1a1a1a'),      # Main text
-        'secondary': colors.HexColor('#4A5568'),    # Secondary text
-        'accent': colors.HexColor('#2B6CB0'),       # Titles and headings
-        'background': colors.HexColor('#F7FAFC'),   # Background elements
-        'divider': colors.HexColor('#E2E8F0'),      # Lines and dividers
-        'bullet': colors.HexColor('#3182CE'),       # Bullet points
-        'highlight_bg': colors.HexColor('#EBF8FF'), # Highlight box background
-        'highlight_border': colors.HexColor('#90CDF4') # Highlight box border
-    }
-    
-    return {
-        'title': ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Title'],
-            fontSize=24,
-            textColor=custom_colors['accent'],
-            spaceAfter=30,
-            alignment=TA_LEFT,
-            fontName='Helvetica-Bold'
-        ),
-        'heading': ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading1'],
-            fontSize=18,
-            textColor=custom_colors['primary'],
-            spaceBefore=20,
-            spaceAfter=10,
-            fontName='Helvetica-Bold',
-            leading=22
-        ),
-        'subheading': ParagraphStyle(
-            'CustomSubheading',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=custom_colors['secondary'],
-            spaceBefore=15,
-            spaceAfter=8,
-            fontName='Helvetica-Bold',
-            leading=18
-        ),
-        'content': ParagraphStyle(
-            'CustomContent',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['primary'],
-            alignment=TA_JUSTIFY,
-            spaceBefore=6,
-            spaceAfter=6,
-            fontName='Helvetica',
-            leading=16,
-            firstLineIndent=20
-        ),
-        'bullet_main': ParagraphStyle(
-            'BulletMain',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['primary'],
-            leftIndent=30,
-            bulletIndent=15,
-            spaceBefore=6,
-            spaceAfter=6,
-            fontName='Helvetica-Bold',
-            leading=16,
-            bulletColor=custom_colors['bullet']
-        ),
-        'bullet_sub': ParagraphStyle(
-            'BulletSub',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['secondary'],
-            leftIndent=45,
-            bulletIndent=30,
-            spaceBefore=3,
-            spaceAfter=3,
-            fontName='Helvetica',
-            leading=14
-        ),
-        'bullet_subsub': ParagraphStyle(
-            'BulletSubSub',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['secondary'],
-            leftIndent=60,
-            bulletIndent=45,
-            spaceBefore=2,
-            spaceAfter=2,
-            fontName='Helvetica',
-            leading=14
-        ),
-        'highlight': ParagraphStyle(
-            'HighlightContent',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['primary'],
-            alignment=TA_LEFT,
-            spaceBefore=0,
-            spaceAfter=0,
-            fontName='Helvetica',
-            leading=16
-        ),
-        'point_title': ParagraphStyle(
-            'PointTitle',
-            parent=styles['Normal'],
-            fontSize=12,
-            textColor=custom_colors['accent'],
-            fontName='Helvetica-Bold',
-            leading=16
-        ),
-        'toc_title': ParagraphStyle(
-            'TOCTitle',
-            parent=styles['Title'],
-            fontSize=18,
-            textColor=custom_colors['accent'],
-            spaceAfter=20,
-            alignment=TA_LEFT,
-            fontName='Helvetica-Bold'
-        ),
-        'toc_entry': ParagraphStyle(
-            'TOCEntry',
-            parent=styles['Normal'],
-            fontSize=12,
-            textColor=custom_colors['primary'],
-            fontName='Helvetica',
-            leading=16,
-            spaceBefore=6,
-            spaceAfter=6
-        ),
-        'toc_entry_level2': ParagraphStyle(
-            'TOCEntryLevel2',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['secondary'],
-            fontName='Helvetica',
-            leading=14,
-            leftIndent=20,
-            spaceBefore=4,
-            spaceAfter=4
-        )
-    }
 
-def create_highlight_box(text, styles, include_number=None):
-    """Create highlighted box for key content with optional numbering"""
-    # Default background and border colors from styles
-    bg_color = colors.HexColor('#EBF8FF')  # Light blue background
-    border_color = colors.HexColor('#90CDF4')  # Blue border
+
+def create_toc(styles):
+    elements = []
+    elements.append(Paragraph("Table of Contents", styles['title']))
+    toc_items = [
+        ("Initial Assessment", "1"),
+        ("Career Recommendations", "2"),
+        ("Detailed Analysis", "3"),
+        ("Professional Experience", "4"),
+        ("Contact Information", "5")
+    ]
     
-    content = text
-    if include_number is not None:
-        content = f"Point {include_number}: {text}"
+    for item, page in toc_items:
+        elements.append(
+            Paragraph(
+                f"{item} {'.' * (50 - len(item))} {page}",
+                styles['content']
+            )
+        )
+        elements.append(Spacer(1, 0.1*inch))
     
-    return Table(
-        [[Paragraph(clean_text(content), styles['highlight'])]],
-        colWidths=[7*inch],
-        style=TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), bg_color),
-            ('BOX', (0, 0), (-1, -1), 1, border_color),
-            ('TOPPADDING', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('LEFTPADDING', (0, 0), (-1, -1), 15),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-        ])
-    )
-def process_section_content(content, styles, elements):
-    """
-    Process section content with enhanced bullet points and highlight boxes
-    """
-    paragraphs = []
-    current_paragraph = []
-    bullet_level = 0
-    current_point_number = None
+    return elements
+
+def create_assessment_section(analysis1, styles):
+    elements = []
+    elements.append(Paragraph("Initial Assessment", styles['heading']))
     
-    # Split content into lines and process
-    lines = content.strip().split('\n')
-    for i, line in enumerate(lines):
-        clean_line = clean_text(line)
-        if not clean_line:
-            continue
-            
-        # Check for numbered points (1., 2., etc. at start of line)
-        if re.match(r'^\d+\.', clean_line):
-            # If we were building a paragraph, add it now
-            if current_paragraph:
-                paragraphs.append((' '.join(current_paragraph), 'normal', None))
-                current_paragraph = []
-            
-            # Extract point number and content
-            point_num = int(clean_line.split('.')[0])
-            point_content = clean_line[clean_line.find('.')+1:].strip()
-            
-            # Add as a highlighted point
-            paragraphs.append((point_content, 'highlight', point_num))
-            current_point_number = point_num
-            
-        # Check for sub-bullets under the main points
-        elif clean_line.startswith(('•', '-', '*')) or re.match(r'^\s+[•\-\*]', clean_line):
-            if current_paragraph:
-                paragraphs.append((' '.join(current_paragraph), 'normal', None))
-                current_paragraph = []
-            
-            # Determine indentation level
-            indent_level = len(line) - len(line.lstrip())
-            if indent_level > 8:
-                bullet_level = 2  # Sub-sub bullet
-            elif indent_level > 4:
-                bullet_level = 1  # Sub bullet
-            else:
-                bullet_level = 0  # Main bullet
-            
-            # Format bullet point
-            text = clean_line.lstrip('•-* ')
-            bullet_text = f"• {text}"
-            paragraphs.append((bullet_text, f'bullet_{bullet_level}', None))
-            
-        else:
-            # Reset point number for non-point content
-            if not line.strip().endswith(':'):  # Don't reset for section headers
-                current_point_number = None
-            current_paragraph.append(clean_line)
+    # Split into characteristics and strengths
+    parts = analysis1.split("Key Strengths and Advantages")
     
-    # Add any remaining paragraph
-    if current_paragraph:
-        paragraphs.append((' '.join(current_paragraph), 'normal', None))
+    # Process characteristics
+    elements.append(Paragraph("Key Characteristics", styles['subheading']))
+    process_content(parts[0], styles, elements, with_highlights=True)
     
-    # Create styled elements
-    for text, style_type, point_num in paragraphs:
-        if style_type == 'highlight':
-            elements.extend([
-                Spacer(1, 12),
-                create_highlight_box(text, styles, point_num),
-                Spacer(1, 12)
-            ])
-        elif style_type.startswith('bullet_'):
-            level = int(style_type.split('_')[1])
-            style_name = ['bullet_main', 'bullet_sub', 'bullet_subsub'][level]
-            elements.append(Paragraph(clean_text(text), styles[style_name]))
-        else:
-            if len(text) > 50:  # Only add as content if it's a substantial paragraph
+    # Process strengths if present
+    if len(parts) > 1:
+        elements.append(Paragraph("Key Strengths and Advantages", styles['subheading']))
+        process_content(parts[1], styles, elements, with_highlights=True)
+    
+    return elements
+
+def create_recommendations_section(analysis2, styles):
+    elements = []
+    elements.append(Paragraph("Career Recommendations", styles['heading']))
+    
+    # Split sections
+    sections = re.split(r'(Required Skills and Competencies|Required Personality)', analysis2)
+    
+    if len(sections) > 1:
+        # Overview
+        elements.append(Paragraph("Overview", styles['subheading']))
+        process_content(sections[0], styles, elements)
+        
+        # Skills
+        elements.append(Paragraph(sections[1], styles['subheading']))
+        process_content(sections[2], styles, elements, with_highlights=True)
+        
+        # Personality
+        if len(sections) > 3:
+            elements.append(Paragraph(sections[3], styles['subheading']))
+            process_content(sections[4], styles, elements, with_highlights=True)
+    else:
+        process_content(analysis2, styles, elements)
+    
+    return elements
+
+def create_detailed_analysis_section(analysis3, styles):
+    elements = []
+    elements.append(Paragraph("Detailed Skills and Personality Analysis", styles['heading']))
+    process_content(analysis3, styles, elements, with_highlights=True)
+    return elements
+
+
+
+
+def create_experience_section(work_experience, styles):
+    elements = []
+    elements.append(Paragraph("Professional Experience", styles['heading']))
+    
+    for section_id, section_data in work_experience.items():
+        if section_data.get("entries"):
+            elements.append(Paragraph(section_data["title"], styles['subheading']))
+            for entry in section_data["entries"]:
                 elements.extend([
-                    Paragraph(clean_text(text), styles['content']),
-                    Spacer(1, 8)
+                    create_highlight_box(clean_text(entry), styles),
+                    Spacer(1, 0.1*inch)
                 ])
+    
+    return elements
+
+
 def create_kerjayaku_info_page(styles):
     """Create the KerjayaKu information page"""
     elements = []
@@ -374,7 +219,7 @@ def create_contact_page(styles):
     elements = []
     
     # Add a page break before contact page
-    elements.append(PageBreak())
+    # elements.append(PageBreak())
     
     # Create a colored background header
     elements.append(
@@ -499,9 +344,62 @@ def create_contact_page(styles):
     ])
     
     return elements
+def create_custom_styles():
+    """Create custom styles for the PDF with proper style inheritance"""
+    styles = getSampleStyleSheet()
+    
+    # Custom paragraph styles
+    return {
+        'title': ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Normal'],
+            fontSize=24,
+            textColor=colors.HexColor('#2B6CB0'),
+            alignment=TA_CENTER,
+            spaceAfter=30,
+            fontName='Helvetica-Bold'
+        ),
+        'heading': ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Normal'],
+            fontSize=20,
+            textColor=colors.HexColor('#1a1a1a'),
+            spaceBefore=20,
+            spaceAfter=15,
+            fontName='Helvetica-Bold'
+        ),
+        'subheading': ParagraphStyle(
+            'CustomSubheading',
+            parent=styles['Normal'],
+            fontSize=16,
+            textColor=colors.HexColor('#4A5568'),
+            spaceBefore=15,
+            spaceAfter=10,
+            fontName='Helvetica-Bold'
+        ),
+        'content': ParagraphStyle(
+            'CustomContent',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#1a1a1a'),
+            alignment=TA_JUSTIFY,
+            spaceBefore=6,
+            spaceAfter=6,
+            fontName='Helvetica'
+        ),
+        'bullet': ParagraphStyle(
+            'CustomBullet',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#1a1a1a'),
+            leftIndent=20,
+            firstLineIndent=0,
+            fontName='Helvetica'
+        )
+    }
 
-def generate_pdf(analysis1, analysis2, personal_info, work_experience):
-    """Generate PDF with enhanced formatting and highlight boxes"""
+def generate_pdf(analysis1, analysis3, personal_info, work_experience):
+    """Generate PDF with proper section handling"""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -515,65 +413,117 @@ def generate_pdf(analysis1, analysis2, personal_info, work_experience):
     styles = create_custom_styles()
     elements = []
     
-    # Front Page (remains the same)
     elements.extend(create_front_page(styles, personal_info))
-    
-    # Experience Section with highlight boxes for each experience type
-    elements.append(Paragraph("Professional Experience", styles['heading']))
-    for exp_type, details in work_experience.items():
-        if details.get('description'):
-            elements.extend([
-                Paragraph(clean_text(details['title']), styles['subheading']),
-                create_highlight_box(clean_text(details['description']), styles),
-                Spacer(1, 0.2*inch)
-            ])
     elements.append(PageBreak())
     
-    # Analysis Sections with highlight boxes for key points
+    # Initial Assessment
     elements.append(Paragraph("Initial Assessment", styles['heading']))
-    process_section_content(analysis1, styles, elements)
+    process_content(analysis1, styles, elements)
     elements.append(PageBreak())
     
-    elements.append(Paragraph("Career Recommendations", styles['heading']))
-    process_section_content(analysis2, styles, elements)
+    # Career Recommendations
+    # elements.append(Paragraph("Career Recommendations", styles['heading']))
+    # process_content(analysis2, styles, elements)
     # elements.append(PageBreak())
-
-    # elements.extend(create_kerjayaku_info_page(styles))
-
+    
+    # Detailed Analysis
+    elements.append(Paragraph("Detailed Skills and Personality Analysis", styles['heading']))
+    process_content(analysis3, styles, elements)
+    elements.append(PageBreak())
+    
+    # Experience section
+    if work_experience:
+        elements.append(Paragraph("Professional Experience", styles['heading']))
+        for section_id, section_data in work_experience.items():
+            if section_data.get("entries"):
+                elements.append(Paragraph(section_data["title"], styles['subheading']))
+                for entry in section_data["entries"]:
+                    elements.append(create_highlight_box(clean_text(entry), styles))
+                    elements.append(Spacer(1, 0.1*inch))
+        elements.append(PageBreak())
+    
+    # Contact page
     elements.extend(create_contact_page(styles))
-    # elements.append(PageBreak())
-
+    
     # Build PDF
     doc.build(elements, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
     buffer.seek(0)
     return buffer
+
+def process_content(content, styles, elements):
+    """Process content with proper formatting"""
+    if not content:
+        return
+    
+    paragraphs = content.strip().split('\n')
+    for para in paragraphs:
+        clean_para = clean_text(para)
+        if not clean_para:
+            continue
+        
+        # Handle numbered points
+        point_match = re.match(r'^\d+\.?\s+(.+)', clean_para)
+        if point_match:
+            elements.extend([
+                Spacer(1, 0.1*inch),
+                create_highlight_box(point_match.group(1), styles),
+                Spacer(1, 0.1*inch)
+            ])
+        # Handle bullet points
+        elif clean_para.startswith(('•', '-', '*')):
+            elements.append(
+                Paragraph(
+                    f"• {clean_para.lstrip('•-* ')}",
+                    styles['bullet']
+                )
+            )
+        else:
+            elements.append(Paragraph(clean_para, styles['content']))
+            elements.append(Spacer(1, 0.05*inch))
+
+def create_highlight_box(text, styles):
+    """Create highlighted box with consistent styling"""
+    return Table(
+        [[Paragraph(text, styles['content'])]],
+        colWidths=[6*inch],
+        style=TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F7FAFC')),
+            ('BORDER', (0,0), (-1,-1), 1, colors.HexColor('#90CDF4')),
+            ('PADDING', (0,0), (-1,-1), 12),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ])
+    )
+
+def process_section_content(content, styles, elements):
+    if not content:
+        return
+        
+    paragraphs = content.strip().split('\n')
+    for para in paragraphs:
+        clean_para = clean_text(para)
+        if not clean_para:
+            continue
+            
+        # Handle numbered points
+        point_match = re.match(r'^\d+\.?\s+(.+)', clean_para)
+        if point_match:
+            elements.extend([
+                Spacer(1, 0.1*inch),
+                create_highlight_box(point_match.group(1), styles),
+                Spacer(1, 0.1*inch)
+            ])
+        else:
+            elements.append(Paragraph(clean_para, styles['content']))
+            elements.append(Spacer(1, 0.05*inch))
+
+
 def clean_text(text):
-    """Clean text by thoroughly removing markdown formatting"""
     if not text:
         return ""
-    # First pass - remove markdown headers and formatting
-    text = text.replace('### ', '')  # Add space to avoid partial replacements
-    text = text.replace('###', '')
-    text = text.replace('## ', '')
-    text = text.replace('##', '')
-    text = text.replace('# ', '')
-    text = text.replace('#', '')
-    
-    # Remove list markers and formatting
-    text = text.replace('- ', '')
-    text = text.replace('**', '')
-    text = text.replace('*', '')
-    text = text.replace('`', '')
-    text = text.replace('_', ' ')
-    
-    # Clean up multiple periods
-    text = text.replace('....', '.')
-    text = text.replace('...', '.')
-    text = text.replace('..', '.')
-    
-    # Normalize spaces
-    text = ' '.join(text.split())
-    return text.strip()
+    text = re.sub(r'#{1,6}\s?', '', text)  # Remove markdown headers
+    text = re.sub(r'[\*_`]', '', text)      # Remove markdown formatting
+    text = re.sub(r'\.{2,}', '.', text)     # Clean up multiple periods
+    return ' '.join(text.split()).strip()
 def create_dynamic_toc(elements, styles, content_sections):
     """Create dynamic table of contents with enhanced styling"""
     elements.append(Table([['']], colWidths=[7*inch], rowHeights=[2],
@@ -654,41 +604,6 @@ def create_header_footer(canvas, doc):
         canvas.drawRightString(doc.width + doc.rightMargin, 0.5*inch, 
                              f"Page {doc.page}")
     canvas.restoreState()
-def create_front_page(styles, personal_info):
-    """Create the front page of the report."""
-    elements = []
-    
-    # Logo placement
-    if all(os.path.exists(logo) for logo in ["kerjayaku.jpg", "finb.jpg"]):
-        elements.append(Table(
-            [[Image("kerjayaku.jpg", width=2*inch, height=2*inch),
-              Image("finb.jpg", width=1.5*inch, height=0.5*inch)]],
-            colWidths=[2.5*inch, 3*inch, 2*inch],
-            style=TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
-            ])
-        ))
-    
-    elements.extend([
-        Spacer(1, inch),
-        Paragraph("Career Analysis Report", styles['title']),
-        Paragraph(f"for {personal_info['name']}", styles['heading']),
-        Spacer(1, 0.5*inch),
-        Table(
-            [["Education:", personal_info['education']],
-             ["Field of Study:", personal_info['major']],
-             ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info['languages'].items())]],
-            colWidths=[2*inch, 4*inch],
-            style=TableStyle([
-                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E2E8F0')),
-                ('PADDING', (0, 0), (-1, -1), 6)
-            ])
-        ),
-        PageBreak()
-    ])
-    return elements
 
 def initialize_session_state():
     if 'current_step' not in st.session_state:
@@ -723,25 +638,88 @@ def render_personal_info():
         st.session_state.show_language_form = False
     if not hasattr(st.session_state, 'temp_basic_info'):
         st.session_state.temp_basic_info = {}
+    if not hasattr(st.session_state, 'user_image'):
+        st.session_state.user_image = None
+    if not hasattr(st.session_state, 'photo_option'):
+        st.session_state.photo_option = "Upload a photo"
 
     if not st.session_state.show_language_form:
-        with st.form("basic_info"):
-            full_name = st.text_input("Full name", help="Required field")
-            age = st.number_input("Age", min_value=13, max_value=65, value=20)
-            education = st.selectbox("Highest level of education completed", EDUCATION_LEVELS, help="Required field")
+        photo_option = st.radio("Choose how to add your photo:", 
+                              ["Upload a photo", "Take a photo"], 
+                              horizontal=True,
+                              key="photo_choice")
+        
+        if photo_option == "Take a photo":
+            st.info("Please allow camera access when prompted by your browser.")
+            try:
+                camera_photo = st.camera_input(
+                    "Take your photo",
+                    key="camera_input",
+                    help="If camera doesn't open, please check your browser permissions"
+                )
+                if camera_photo is not None:
+                    st.session_state.user_image = camera_photo.read()
+                    st.success("Photo captured successfully!")
+                    st.image(st.session_state.user_image, caption="Captured photo", width=200)
+            except Exception as e:
+                st.error(f"Error accessing camera: {str(e)}")
+                st.info("Please make sure to:")
+                st.markdown("""
+                    1. Allow camera access in your browser
+                    2. Use a supported browser (Chrome, Firefox, or Edge)
+                    3. Access the app through HTTPS if running remotely
+                """)
+        
+        if st.session_state.user_image:
+            if st.button("Clear current photo", key="clear_photo_button_1"):
+                st.session_state.user_image = None
+                st.info("Photo cleared. You can upload or take a new one.")
+                st.rerun()
+
+        with st.form("personal_info_form"):
+            st.subheader("Profile Photo")
             
-            major_selection = st.selectbox("Field of study/major", FIELDS_OF_STUDY)
-            major = st.text_input("Please specify your field of study") if major_selection == "Others" else major_selection
+            if photo_option == "Upload a photo":
+                uploaded_file = st.file_uploader("Upload your profile photo", 
+                                               type=['jpg', 'jpeg', 'png'])
+                if uploaded_file is not None:
+                    st.session_state.user_image = uploaded_file.read()
+                    st.success("Photo uploaded successfully!")
+                    st.image(st.session_state.user_image, width=200)
+            
+            elif st.session_state.user_image:
+                st.image(st.session_state.user_image, caption="Current photo", width=200)
+            
+            st.subheader("Personal Details")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                full_name = st.text_input("Full name", help="Required field")
+                major_selection = st.selectbox("Field of study/major", FIELDS_OF_STUDY)
+                if major_selection == "Others":
+                    major = st.text_input("Please specify your field of study")
+                else:
+                    major = major_selection
+                education = st.selectbox("Highest level of education completed", 
+                                       EDUCATION_LEVELS, 
+                                       help="Required field")
+            
+            with col2:
+                age = st.number_input("Age", min_value=13, max_value=65, value=20)
             
             languages = st.multiselect("Select languages", LANGUAGES)
             
             submitted_basic = st.form_submit_button("Continue to Language Proficiency")
+            
             if submitted_basic:
                 if not full_name or not education:
                     st.error("Please fill in all required fields")
                     return None
                 if not languages:
                     st.error("Please select at least one language")
+                    return None
+                if major_selection == "Others" and not major:
+                    st.error("Please specify your field of study")
                     return None
                 
                 st.session_state.temp_basic_info = {
@@ -758,100 +736,262 @@ def render_personal_info():
         st.write(f"Name: {st.session_state.temp_basic_info['name']}")
         st.write(f"Education: {st.session_state.temp_basic_info['education']}")
         
+        if st.session_state.user_image:
+            st.image(st.session_state.user_image, caption="Your Profile Photo", width=200)
+        
         st.subheader("Set Language Proficiencies")
         language_proficiencies = {}
         
-        for lang in st.session_state.temp_basic_info["selected_languages"]:
-            if lang == "Others":
-                custom_lang = st.text_input("Specify other language")
-                if custom_lang:
+        with st.form("language_form"):
+            for lang in st.session_state.temp_basic_info["selected_languages"]:
+                if lang == "Others":
+                    custom_lang = st.text_input("Specify other language")
+                    if custom_lang:
+                        proficiency = st.select_slider(
+                            f"Proficiency in {custom_lang}",
+                            options=["Beginner", "Intermediate", "Advanced", "Native/Fluent"]
+                        )
+                        language_proficiencies[custom_lang] = proficiency
+                else:
                     proficiency = st.select_slider(
-                        f"Proficiency in {custom_lang}",
-                        options=["Beginner", "Intermediate", "Advanced", "Native/Fluent"],
-                        key=f"lang_other_{custom_lang}"
+                        f"Proficiency in {lang}",
+                        options=["Beginner", "Intermediate", "Advanced", "Native/Fluent"]
                     )
-                    language_proficiencies[custom_lang] = proficiency
-            else:
-                proficiency = st.select_slider(
-                    f"Proficiency in {lang}",
-                    options=["Beginner", "Intermediate", "Advanced", "Native/Fluent"],
-                    key=f"lang_{lang}"
-                )
-                language_proficiencies[lang] = proficiency
+                    language_proficiencies[lang] = proficiency
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Back"):
-                st.session_state.show_language_form = False
-                st.rerun()
-        with col2:
-            if st.button("Next"):
-                complete_data = st.session_state.temp_basic_info.copy()
-                complete_data["languages"] = language_proficiencies
-                return complete_data
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.form_submit_button("Back"):
+                    st.session_state.show_language_form = False
+                    st.rerun()
+            with col2:
+                if st.form_submit_button("Next"):
+                    complete_data = st.session_state.temp_basic_info.copy()
+                    complete_data["languages"] = language_proficiencies
+                    return complete_data
     
     return None
+def create_front_page(styles, personal_info):
+    """Create the front page of the report with user photo."""
+    import os
+    import tempfile
+    from PIL import Image as PILImage
+    import io
+    
+    elements = []
+    temp_path = None
+    
+    # Logo placement - reduced spacing and size
+    if all(os.path.exists(logo) for logo in ["kerjayaku.jpg", "finb.jpg"]):
+        elements.append(Table(
+            [[Image("kerjayaku.jpg", width=1.5*inch, height=1.5*inch),
+              Image("finb.jpg", width=1.2*inch, height=0.4*inch)]],
+            colWidths=[2*inch, 3*inch, 2*inch],
+            style=TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
+            ])
+        ))
+    
+    elements.extend([
+        Spacer(1, 0.3*inch),  # Reduced spacing
+        Paragraph("Career Analysis Report", styles['title']),
+    ])
 
+    # Add user photo if available - with smaller dimensions
+    if hasattr(st.session_state, 'user_image') and st.session_state.user_image:
+        try:
+            # Save image to a fixed location
+            temp_path = "user_profile_temp.jpg"
+            
+            # Convert bytes to PIL Image and save as JPEG
+            image = PILImage.open(io.BytesIO(st.session_state.user_image))
+            
+            # Ensure image is in RGB mode
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+                
+            # Save the image
+            image.save(temp_path, 'JPEG')
+            
+            # Create a row with photo and personal info side by side
+            info_table = Table(
+                [["Education:", personal_info['education']],
+                 ["Field of Study:", personal_info['major']],
+                 ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info['languages'].items())]],
+                colWidths=[1.5*inch, 3.5*inch],
+                style=TableStyle([
+                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E2E8F0')),
+                    ('PADDING', (0, 0), (-1, -1), 6),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ])
+            )
+            
+            # Create a table with photo on left and info on right
+            combined_table = Table(
+                [[Image(temp_path, width=1.5*inch, height=1.5*inch), info_table]],
+                colWidths=[2*inch, 5*inch],
+                style=TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 12),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+                    ('TOPPADDING', (0, 0), (-1, -1), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                ])
+            )
+            
+            elements.extend([
+                Spacer(1, 0.3*inch),
+                Paragraph(f"for {personal_info['name']}", styles['heading']),
+                Spacer(1, 0.3*inch),
+                combined_table
+            ])
+            
+        except Exception as e:
+            st.error(f"Error processing user image: {str(e)}")
+            print(f"Error details: {str(e)}")
+            
+            # Fallback layout without photo
+            elements.extend([
+                Spacer(1, 0.3*inch),
+                Paragraph(f"for {personal_info['name']}", styles['heading']),
+                Spacer(1, 0.3*inch),
+                Table(
+                    [["Education:", personal_info['education']],
+                     ["Field of Study:", personal_info['major']],
+                     ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info['languages'].items())]],
+                    colWidths=[2*inch, 4*inch],
+                    style=TableStyle([
+                        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E2E8F0')),
+                        ('PADDING', (0, 0), (-1, -1), 6)
+                    ])
+                )
+            ])
+    else:
+        # Layout without photo
+        elements.extend([
+            Spacer(1, 0.3*inch),
+            Paragraph(f"for {personal_info['name']}", styles['heading']),
+            Spacer(1, 0.3*inch),
+            Table(
+                [["Education:", personal_info['education']],
+                 ["Field of Study:", personal_info['major']],
+                 ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info['languages'].items())]],
+                colWidths=[2*inch, 4*inch],
+                style=TableStyle([
+                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E2E8F0')),
+                    ('PADDING', (0, 0), (-1, -1), 6)
+                ])
+            )
+        ])
+    
+    if temp_path:
+        st.session_state['temp_image_path'] = temp_path
+        
+    return elements
+def create_info_only_layout(personal_info, styles):
+    """Create layout without profile photo"""
+    info_table = Table(
+        [["Education:", personal_info['education']],
+         ["Field of Study:", personal_info['major']],
+         ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info['languages'].items())]],
+        colWidths=[2*inch, 5*inch],
+        style=TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E2E8F0')),
+            ('PADDING', (0, 0), (-1, -1), 10),
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F7FAFC')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ])
+    )
+    
+    return [
+        Spacer(1, 0.5*inch),
+        info_table
+    ]
 def render_work_experience():
-    """Render the work experience form."""
+    """Render the work experience form with dynamic entry addition (max 5 entries per section)."""
     st.header("Work Experience")
+    MAX_ENTRIES = 5
+    
     exp_sections = {
         "internships": {
             "title": "Internships and Work Experience",
-            "placeholder": "Describe your roles and responsibilities"
+            "placeholder": "Example: Software Developer Intern at Tech Corp"
         },
         "projects": {
             "title": "Key Projects",
-            "placeholder": "Describe significant projects you've worked on"
+            "placeholder": "Example: Built an e-commerce website"
         },
         "achievements": {
             "title": "Achievements",
-            "placeholder": "List notable achievements and awards"
+            "placeholder": "Example: Won first place in coding competition"
         }
     }
     
+    # Initialize session state for counting entries
+    for section_id in exp_sections:
+        if f"num_{section_id}" not in st.session_state:
+            st.session_state[f"num_{section_id}"] = 1
+    
+    experiences = {}
+    
     with st.form("work_experience"):
-        experiences = {}
         for section_id, section_info in exp_sections.items():
             st.subheader(section_info["title"])
-            description = st.text_area(
-                "Description",
-                key=f"desc_{section_id}",
-                placeholder=section_info["placeholder"]
-            )
+            entries = []
             
-            # if description:  # Only show dates if description is provided
-            #     col1, col2 = st.columns(2)
-            #     with col1:
-            #         start_date = st.date_input(
-            #             "Start Date",
-            #             key=f"start_{section_id}",
-            #             min_value=datetime.date(2000, 1, 1)
-            #         )
-            #     with col2:
-            #         end_date = st.date_input(
-            #             "End Date",
-            #             key=f"end_{section_id}",
-            #             min_value=start_date
-            #         )
-                
-            #     experiences[section_id] = {
-            #         "title": section_info["title"],
-            #         "description": description,
-            #         "period": f"{start_date.strftime('%m/%Y')} - {end_date.strftime('%m/%Y')}"
-            #     }
+            # Display existing input fields
+            for i in range(st.session_state[f"num_{section_id}"]):
+                entry = st.text_input(
+                    f"{section_info['title']} #{i+1}",
+                    key=f"{section_id}_{i}",
+                    placeholder=section_info["placeholder"],max_chars=50
+                )
+                if entry:
+                    entries.append(entry)
             
-            st.markdown("---")
-            if description:
+            if entries:
                 experiences[section_id] = {
                     "title": section_info["title"],
-                    "description": description,
-                    # "period": f"{start_date.strftime('%m/%Y')} - {end_date.strftime('%m/%Y')}"
-                }           
+                    "entries": entries
+                }
+            
+            # Add entry button with limit check
+            col1, col2 = st.columns([0.2, 0.8])
+            with col1:
+                add_button = st.form_submit_button(f"Add {section_id.rstrip('s')}")
+            with col2:
+                if st.session_state[f"num_{section_id}"] >= MAX_ENTRIES:
+                    st.warning(f"Maximum {MAX_ENTRIES} entries allowed")
+                
+            if add_button and st.session_state[f"num_{section_id}"] < MAX_ENTRIES:
+                st.session_state[f"num_{section_id}"] += 1
+                st.rerun()
+            
+            st.markdown("---")
         
-        if st.form_submit_button("Continue"):
-            return experiences or {"general": {"title": "Experience", "description": "No specific experience provided."}}
+        # Main submit button
+        submitted = st.form_submit_button("Save and Continue")
+        if submitted:
+            if not experiences:
+                experiences = {"general": {"title": "Experience", "entries": ["No specific experience provided."]}}
+            return experiences
+            
     return None
+# Helper function to display experiences if needed
+def display_experiences(experiences):
+    if experiences:
+        for section_id, section_data in experiences.items():
+            st.subheader(section_data["title"])
+            for i, entry in enumerate(section_data["entries"], 1):
+                st.write(f"{i}. {entry}")
 def render_career_aspirations():
     st.header("Career Aspirations")
     
@@ -936,7 +1076,7 @@ def render_career_aspirations():
                 section["options"],
                 key=key
             )
-            other = st.text_input(f"Other {section['title'].lower()} (optional)", key=f"other_{key}")
+            other = st.text_input(f"Other {section['title'].lower()} (optional)", key=f"other_{key}",max_chars=250)
             aspirations[key] = selected + ([other] if other else [])
 
         if st.form_submit_button("Submit"):
@@ -946,38 +1086,17 @@ def render_career_aspirations():
             return aspirations
     return None
 
-def get_ai_analysis2(user_data, api_key):
-    client = OpenAI(api_key=api_key)
-    
-    prompt = f"""As a career advisor, analyze this profile and provide specific recommendations:
-
-Profile:
-{json.dumps(user_data, indent=2)}
-
-Provide a detailed analysis of the above findings in 1000 words with real examples or references and an additional analysis on:
-
-1) based on the profile of the person given earlier, and the career aspirations given, what are the required skills and competencies that are needed for this person  to have? Explain in 700 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points(numbering) with long examples
-
-2) based on the profile of the person given earlier, and the career aspirations given, what are the required personality or attributes that are needed for this person  to have? Explain in 700 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points points(numbering) with long examples """
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4-turbo-preview",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        st.error(f"Error getting AI analysis: {str(e)}")
-        return None
-    
 def get_ai_analysis1(user_data, api_key):
+    """Get initial AI assessment using OpenAI API."""
     client = OpenAI(api_key=api_key)
     
-    prompt = f"""As a career advisor,  provide initial assessment and predict likely personality:
+    # Create a clean version of user data for the prompt
+    user_data_str = json.dumps(user_data, indent=2, ensure_ascii=False)
+    
+    prompt = f"""As a career advisor, provide initial assessment and predict likely personality:
 
 Profile:
-{json.dumps(user_data, indent=2)}
+{user_data_str}
 
 Provide structured analysis covering:
 1. Summarize key characteristics in 500 words
@@ -986,26 +1105,67 @@ Provide structured analysis covering:
     try:
         response = client.chat.completions.create(
             model="gpt-4-turbo-preview",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": prompt.encode('utf-8').decode('utf-8')}],
             temperature=0.7
         )
         return response.choices[0].message.content
     except Exception as e:
         st.error(f"Error getting AI analysis: {str(e)}")
         return None
-def get_ai_analysis(user_data, api_key, is_initial=True):
-    """Get AI-generated analysis using OpenAI API."""
+
+def get_ai_analysis3(user_data,analyst, api_key):
+    """Get detailed AI career recommendations using OpenAI API."""
     client = OpenAI(api_key=api_key)
     
-    prompt = f"""{'Initial assessment' if is_initial else 'Career recommendations'} for:
-    {json.dumps(user_data, indent=2)}
+    # Create a clean version of user data for the prompt
+    user_data_str = json.dumps(user_data, indent=2, ensure_ascii=False)
     
-    Provide a detailed {'assessment' if is_initial else 'set of recommendations'} in 1500 words."""
-    
+    prompt = f"""As a career advisor, analyze this profile and provide specific recommendations:
+
+Profile:
+{user_data_str}
+
+Skills and Personality for this user to have:
+{analyst}
+
+Provide a detailed analysis of the above findings in 1000 words with real examples or references and an additional analysis on:
+
+1) based on the profile of the person given earlier, and the Skills and Personality given, what are the REQUIRED Skills and Competencies? Explain in 700 words with real world examples and highlight any potential discrepancies. Do it in exactly 5 points(numbering) with long examples.
+
+2) based on the profile of the person given earlier, and the Skills and Personality given, what are the REQUIRED Compatible Personality and Behavioral Insights? Explain in 700 words with real world examples and highlight any potential discrepancies. Do it in exactly 5 points points(numbering) with long examples."""
+
     try:
         response = client.chat.completions.create(
             model="gpt-4-turbo-preview",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": prompt.encode('utf-8').decode('utf-8')}],
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"Error getting AI analysis: {str(e)}")
+        return None
+def get_ai_analysis2(user_data, api_key):
+    """Get detailed AI career recommendations using OpenAI API."""
+    client = OpenAI(api_key=api_key)
+    
+    # Create a clean version of user data for the prompt
+    user_data_str = json.dumps(user_data, indent=2, ensure_ascii=False)
+    
+    prompt = f"""As a career advisor, analyze this profile and provide specific recommendations:
+
+Profile:
+{user_data_str}
+
+Provide a detailed analysis of the above findings in 1000 words with real examples or references and an additional analysis on:
+
+1) based on the profile of the person given earlier, and the career aspirations given, what are the required skills and competencies that are needed for this person to have? Explain in 700 words with real world examples and highlight any potential discrepancies. Do it in exactly 5 points(numbering) with long examples.
+
+2) based on the profile of the person given earlier, and the career aspirations given, what are the required personality or attributes that are needed for this person to have? Explain in 700 words with real world examples and highlight any potential discrepancies. Do it in exactly 5 points points(numbering) with long examples."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[{"role": "user", "content": prompt.encode('utf-8').decode('utf-8')}],
             temperature=0.7
         )
         return response.choices[0].message.content
@@ -1044,7 +1204,7 @@ def main():
         work_exp = render_work_experience()
         if work_exp:
             st.session_state.user_data['work_experience'] = work_exp
-            with st.expander("📊 Initial Analysis", expanded=True):
+            with st.expander("Initial Analysis", expanded=True):
                 st.session_state.analysis1 = get_ai_analysis1(st.session_state.user_data, api_key)
                 if st.session_state.analysis1:
                     st.markdown("#### Personal Profile Overview")
@@ -1057,20 +1217,29 @@ def main():
             st.session_state.user_data['career_aspirations'] = career_aspirations
             st.session_state.show_analysis = True
             
+            # with st.expander("📊 Final Career Analysis", expanded=True):
+            #     st.session_state.analysis2 = get_ai_analysis2(st.session_state.user_data, api_key)
+            #     if st.session_state.analysis2:
+            #         st.markdown("#### Career Recommendations")
+            #         st.markdown(st.session_state.analysis2)
+
+# new
             with st.expander("📊 Final Career Analysis", expanded=True):
                 st.session_state.analysis2 = get_ai_analysis2(st.session_state.user_data, api_key)
-                if st.session_state.analysis2:
+                st.session_state.analysis3 = get_ai_analysis3(st.session_state.user_data,st.session_state.analysis2, api_key)
+                if st.session_state.analysis3:
                     st.markdown("#### Career Recommendations")
-                    st.markdown(st.session_state.analysis2)
+                    st.markdown(st.session_state.analysis3)
                     
                     # Generate PDF only if both analyses are available
                     if st.session_state.analysis1 and st.session_state.analysis2:
                         try:
                             pdf_buffer = generate_pdf(
                                 st.session_state.analysis1,
-                                st.session_state.analysis2,
+                                # st.session_state.analysis2,
+                                st.session_state.analysis3,
                                 st.session_state.user_data['personal_info'],
-                                st.session_state.user_data.get('work_experience', {})  # Remove the career_aspiration argument
+                                st.session_state.user_data.get('work_experience', {})
                             )
                             
                             # Download button
@@ -1083,6 +1252,7 @@ def main():
                             )
                         except Exception as e:
                             st.error(f"Error generating PDF: {str(e)}")
+                            print(f"Detailed error: {str(e)}")  # Add detailed error logging
 
 if __name__ == "__main__":
     main()
