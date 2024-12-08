@@ -284,60 +284,34 @@ def create_highlight_box(text, styles, include_number=None):
         ])
     )
 def process_section_content(content, styles, elements):
-    """
-    Process section content with enhanced bullet points and highlight boxes
-    """
+    """Process section content with enhanced bullet points and highlight boxes."""
+    if not content:  # Ensure content is not None
+        return
     paragraphs = []
     current_paragraph = []
-    bullet_level = 0
-    current_point_number = None
     
     # Split content into lines and process
-    lines = content.strip().split('\n')
+    lines = content.strip().split('\n') if content else []
     for i, line in enumerate(lines):
-        clean_line = clean_text(line)
+        clean_line = clean_text(line)  # Ensure clean_text handles None safely
         if not clean_line:
             continue
             
-        # Check for numbered points (1., 2., etc. at start of line)
+        # Check for numbered points (e.g., 1., 2., etc.)
         if re.match(r'^\d+\.', clean_line):
-            # If we were building a paragraph, add it now
             if current_paragraph:
                 paragraphs.append((' '.join(current_paragraph), 'normal', None))
                 current_paragraph = []
-            
-            # Extract point number and content
             point_num = int(clean_line.split('.')[0])
             point_content = clean_line[clean_line.find('.')+1:].strip()
-            
-            # Add as a highlighted point
             paragraphs.append((point_content, 'highlight', point_num))
-            current_point_number = point_num
-            
-        # Check for sub-bullets under the main points
         elif clean_line.startswith(('•', '-', '*')) or re.match(r'^\s+[•\-\*]', clean_line):
             if current_paragraph:
                 paragraphs.append((' '.join(current_paragraph), 'normal', None))
                 current_paragraph = []
-            
-            # Determine indentation level
-            indent_level = len(line) - len(line.lstrip())
-            if indent_level > 8:
-                bullet_level = 2  # Sub-sub bullet
-            elif indent_level > 4:
-                bullet_level = 1  # Sub bullet
-            else:
-                bullet_level = 0  # Main bullet
-            
-            # Format bullet point
-            text = clean_line.lstrip('•-* ')
-            bullet_text = f"• {text}"
-            paragraphs.append((bullet_text, f'bullet_{bullet_level}', None))
-            
+            bullet_text = f"• {clean_line.lstrip('•-* ').strip()}"
+            paragraphs.append((bullet_text, 'bullet_main', None))
         else:
-            # Reset point number for non-point content
-            if not line.strip().endswith(':'):  # Don't reset for section headers
-                current_point_number = None
             current_paragraph.append(clean_line)
     
     # Add any remaining paragraph
@@ -353,15 +327,13 @@ def process_section_content(content, styles, elements):
                 Spacer(1, 12)
             ])
         elif style_type.startswith('bullet_'):
-            level = int(style_type.split('_')[1])
-            style_name = ['bullet_main', 'bullet_sub', 'bullet_subsub'][level]
-            elements.append(Paragraph(clean_text(text), styles[style_name]))
+            elements.append(Paragraph(text, styles['bullet_main']))
         else:
-            if len(text) > 50:  # Only add as content if it's a substantial paragraph
-                elements.extend([
-                    Paragraph(clean_text(text), styles['content']),
-                    Spacer(1, 8)
-                ])
+            elements.extend([
+                Paragraph(text, styles['content']),
+                Spacer(1, 8)
+            ])
+
 def create_kerjayaku_info_page(styles):
     """Create the KerjayaKu information page"""
     elements = []
@@ -550,8 +522,8 @@ def create_contact_page(styles):
     
     return elements
 
-def generate_pdf(analysis1, analysis2, personal_info, work_experience):
-    """Generate PDF with enhanced formatting and highlight boxes"""
+def generate_pdf(analysis1, analysis2, personal_info):
+    """Generate PDF with enhanced formatting and highlight boxes."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -564,74 +536,46 @@ def generate_pdf(analysis1, analysis2, personal_info, work_experience):
     
     styles = create_custom_styles()
     elements = []
-    
-    # Front Page with user photo
+
+    # Check for None and provide fallback
+    analysis1 = analysis1 or "No analysis provided."
+    analysis2 = analysis2 or "No recommendations available."
+    personal_info = personal_info or {"name": "Unknown"}
+
+    # Front Page
     elements.extend(create_front_page(styles, personal_info))
     elements.append(PageBreak())
-    
-    # Experience Section with highlight boxes for each experience type
-    elements.append(Paragraph("Professional Experience", styles['heading']))
-    for exp_type, details in work_experience.items():
-        if details.get('description'):
-            elements.extend([
-                Paragraph(clean_text(details['title']), styles['subheading']),
-                create_highlight_box(clean_text(details['description']), styles),
-                Spacer(1, 0.2*inch)
-            ])
-    elements.append(PageBreak())
-    
-    # Analysis Sections with highlight boxes for key points
+
+    # Initial Assessment Section
     elements.append(Paragraph("Initial Assessment", styles['heading']))
     process_section_content(analysis1, styles, elements)
     elements.append(PageBreak())
-    
+
+    # Career Recommendations Section
     elements.append(Paragraph("Career Recommendations", styles['heading']))
     process_section_content(analysis2, styles, elements)
 
+    # Contact Page
     elements.extend(create_contact_page(styles))
     
     # Build PDF
     doc.build(elements, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
     
-    # Cleanup temporary image file after PDF is generated
-    if 'temp_image_path' in st.session_state:
-        try:
-            import os
-            if os.path.exists(st.session_state['temp_image_path']):
-                os.remove(st.session_state['temp_image_path'])
-            del st.session_state['temp_image_path']
-        except Exception as e:
-            print(f"Error cleaning up temporary file: {str(e)}")
-    
     buffer.seek(0)
     return buffer
+
 def clean_text(text):
-    """Clean text by thoroughly removing markdown formatting"""
+    """Clean text by thoroughly removing markdown formatting."""
     if not text:
         return ""
-    # First pass - remove markdown headers and formatting
-    text = text.replace('### ', '')  # Add space to avoid partial replacements
-    text = text.replace('###', '')
-    text = text.replace('## ', '')
-    text = text.replace('##', '')
-    text = text.replace('# ', '')
-    text = text.replace('#', '')
-    
-    # Remove list markers and formatting
-    text = text.replace('- ', '')
-    text = text.replace('**', '')
-    text = text.replace('*', '')
-    text = text.replace('`', '')
-    text = text.replace('_', ' ')
-    
-    # Clean up multiple periods
-    text = text.replace('....', '.')
-    text = text.replace('...', '.')
-    text = text.replace('..', '.')
-    
-    # Normalize spaces
-    text = ' '.join(text.split())
-    return text.strip()
+    text = str(text)  # Ensure the input is a string
+    text = text.replace('### ', '').replace('###', '').replace('## ', '').replace('##', '')
+    text = text.replace('# ', '').replace('#', '').replace('- ', '').replace('**', '')
+    text = text.replace('*', '').replace('`', '').replace('_', ' ')
+    text = text.replace('....', '.').replace('...', '.').replace('..', '.')
+    return ' '.join(text.split()).strip()
+
+
 def create_dynamic_toc(elements, styles, content_sections):
     """Create dynamic table of contents with enhanced styling"""
     elements.append(Table([['']], colWidths=[7*inch], rowHeights=[2],
@@ -1259,9 +1203,7 @@ def create_front_page(styles, personal_info):
             
             # Create a row with photo and personal info side by side
             info_table = Table(
-                [["Education:", personal_info['education']],
-                 ["Field of Study:", personal_info['major']],
-                 ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info['languages'].items())]],
+                [["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items())]],
                 colWidths=[1.5*inch, 3.5*inch],
                 style=TableStyle([
                     ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
@@ -1303,9 +1245,7 @@ def create_front_page(styles, personal_info):
                 Paragraph(f"for {personal_info['name']}", styles['heading']),
                 Spacer(1, 0.3*inch),
                 Table(
-                    [["Education:", personal_info['education']],
-                     ["Field of Study:", personal_info['major']],
-                     ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info['languages'].items())]],
+                    [["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items())]],
                     colWidths=[2*inch, 4*inch],
                     style=TableStyle([
                         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
@@ -1321,9 +1261,7 @@ def create_front_page(styles, personal_info):
             Paragraph(f"for {personal_info['name']}", styles['heading']),
             Spacer(1, 0.3*inch),
             Table(
-                [["Education:", personal_info['education']],
-                 ["Field of Study:", personal_info['major']],
-                 ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info['languages'].items())]],
+                [["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items())]],
                 colWidths=[2*inch, 4*inch],
                 style=TableStyle([
                     ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
@@ -1337,6 +1275,7 @@ def create_front_page(styles, personal_info):
         st.session_state['temp_image_path'] = temp_path
         
     return elements
+
 def render_work_experience():
     """Render the work experience form with date ranges."""
     st.header("Work Experience")
@@ -1706,7 +1645,6 @@ def main():
                     analysis_data = {
                         "personal_info": st.session_state["personal_info"],
                         "personality_assessment": st.session_state["personality_assessment"],
-                        "work_experience": st.session_state["work_experience"],
                         "career_aspirations": career_aspirations
                     }
                     
