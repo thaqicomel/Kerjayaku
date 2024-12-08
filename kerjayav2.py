@@ -1691,7 +1691,7 @@ def get_ai_analysis2(user_data, api_key):
         - Include detailed examples of situations where these traits are critical and explain potential gaps {name} might face.
         - Use a conversational and engaging tone, tailored to inspire action.
 
-    Provide actionable recommendations in each section and ensure the guidance aligns with {name}'s unique goals and background in 1500 words and must be put in a paragph and create a summary table.
+    Provide actionable recommendations in each section and ensure the guidance aligns with {name}'s unique goals and background in 1650 words and must be put in a paragph and create a summary table.
     """
 
     # API call to OpenAI
