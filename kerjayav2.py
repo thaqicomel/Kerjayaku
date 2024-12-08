@@ -14,6 +14,8 @@ import re
 import tempfile
 from PIL import Image as PILImage
 import io
+from typing import Optional, Dict, Any
+
 # Constants
 # Long Description
 long_description = """
@@ -42,16 +44,27 @@ Fresh graduates often struggle to transition from academia to the workforce due 
 KerjayaKu equips you not just for a job, but for a career that aligns with your aspirations and the future of work.
 """
 EDUCATION_LEVELS = [
-    "No formal education", "Primary school", "Secondary school / High school",
-    "Diploma", "Bachelor's degree", "Master's degree", "Doctorate (PhD)",
+    "No formal education",
+    "Primary school",
+    "Secondary school / High school",
+    "Diploma",
+    "Bachelor's degree",
+    "Master's degree",
+    "Doctorate (PhD)",
     "Professional qualification (e.g., ACCA)"
 ]
 
 FIELDS_OF_STUDY = [
-    "Arts and Humanities", "Business and Management", 
-    "Engineering and Technology", "Computer Science / IT",
-    "Health and Medicine", "Natural Sciences", "Social Sciences",
-    "Law", "Education", "Others"
+    "Arts and Humanities",
+    "Business and Management",
+    "Engineering and Technology",
+    "Computer Science / IT",
+    "Health and Medicine",
+    "Natural Sciences",
+    "Social Sciences",
+    "Law",
+    "Education",
+    "Others"
 ]
 
 LANGUAGES = [
@@ -64,6 +77,41 @@ LANGUAGES = [
     "Telugu", "Thai", "Turkish", "Ukrainian", "Urdu", "Vietnamese",
     "Others"
 ]
+
+COUNTRIES = [
+    "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
+    "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain",
+    "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan",
+    "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria",
+    "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada",
+    "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros",
+    "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark",
+    "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador",
+    "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji",
+    "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece",
+    "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras",
+    "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel",
+    "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati",
+    "Korea, North", "Korea, South", "Kuwait", "Kyrgyzstan", "Laos", "Latvia",
+    "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania",
+    "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta",
+    "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova",
+    "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia",
+    "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria",
+    "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine", "Panama",
+    "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal",
+    "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia",
+    "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe",
+    "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore",
+    "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Sudan",
+    "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria",
+    "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga",
+    "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda",
+    "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay",
+    "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen",
+    "Zambia", "Zimbabwe"
+]
+
 ##PDF
 def create_custom_styles():
     """
@@ -666,18 +714,24 @@ def create_header_footer(canvas, doc):
     canvas.restoreState()
 
 def initialize_session_state():
-    if 'current_step' not in st.session_state:
-        st.session_state.current_step = 'personal'
-    if 'user_data' not in st.session_state:
-        st.session_state.user_data = {'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-    if 'language_proficiencies' not in st.session_state:
-        st.session_state.language_proficiencies = {}
-    if 'show_work' not in st.session_state:
-        st.session_state.show_work = False
-    if 'show_aspirations' not in st.session_state:
-        st.session_state.show_aspirations = False
-    if 'show_analysis' not in st.session_state:
-        st.session_state.show_analysis = False
+    """Initialize all required keys in session state."""
+    if "work_experience" not in st.session_state:
+        st.session_state["work_experience"] = {}
+    if "personal_info" not in st.session_state:
+        st.session_state["personal_info"] = {}
+    if "career_aspirations" not in st.session_state:
+        st.session_state["career_aspirations"] = {}
+    if "personality_assessment" not in st.session_state:
+        st.session_state["personality_assessment"] = None
+    if "final_analysis" not in st.session_state:
+        st.session_state["final_analysis"] = None
+    if "current_step" not in st.session_state:
+        st.session_state["current_step"] = 0
+    if "user_image" not in st.session_state:
+        st.session_state.user_image = None
+    if "photo_source" not in st.session_state:
+        st.session_state.photo_source = "upload"
+
 
 def render_header():
     """Render application header"""
@@ -691,7 +745,19 @@ def render_header():
         if os.path.exists(logo_path):
             st.image(logo_path, width=250)
 
+def validate_email(email: str) -> bool:
+    """Validate email format."""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(pattern, email))
+
+def validate_phone(phone: str) -> bool:
+    """Validate phone number format."""
+    # Allows for international format with optional +, spaces, and hyphens
+    pattern = r'^\+?[\d\s-]{8,}$'
+    return bool(re.match(pattern, phone))
+
 def render_personal_info():
+    """Render enhanced personal information form"""
     st.header("Personal Information")
     
     if not hasattr(st.session_state, 'show_language_form'):
@@ -700,144 +766,454 @@ def render_personal_info():
         st.session_state.temp_basic_info = {}
     if not hasattr(st.session_state, 'user_image'):
         st.session_state.user_image = None
-    if not hasattr(st.session_state, 'photo_option'):
-        st.session_state.photo_option = "Upload a photo"
-
+        
+    # Initialize experience lists in session state
+    for exp_type in ['internships', 'volunteer', 'achievements', 'projects']:
+        if exp_type not in st.session_state:
+            st.session_state[exp_type] = []
+    
     if not st.session_state.show_language_form:
-        # Camera input at the top level, outside any forms
-        photo_option = st.radio("Choose how to add your photo:", 
-                              ["Upload a photo", "Take a photo"], 
-                              horizontal=True,
-                              key="photo_choice")
-        
-        if photo_option == "Take a photo":
-            st.info("Please allow camera access when prompted by your browser.")
-            try:
-                camera_photo = st.camera_input(
-                    "Take your photo",
-                    key="camera_input",
-                    help="If camera doesn't open, please check your browser permissions"
-                )
-                if camera_photo is not None:
-                    st.session_state.user_image = camera_photo.read()
-                    st.success("Photo captured successfully!")
-                    st.image(st.session_state.user_image, caption="Captured photo", width=200)
-            except Exception as e:
-                st.error(f"Error accessing camera: {str(e)}")
-                st.info("Please make sure to:")
-                st.markdown("""
-                    1. Allow camera access in your browser
-                    2. Use a supported browser (Chrome, Firefox, or Edge)
-                    3. Access the app through HTTPS if running remotely
-                """)
-        
-        # Clear photo button with unique key
-        if st.session_state.user_image:
-            if st.button("Clear current photo", key="clear_photo_button_1"):
-                st.session_state.user_image = None
-                st.info("Photo cleared. You can upload or take a new one.")
-                st.rerun()
-
-        # Personal Information Form
         with st.form("personal_info_form"):
-            st.subheader("Profile Photo")
+            # Photo Upload Section
+            st.subheader("📸 Profile Photo")
+            photo_option = st.radio("Choose how to add your photo:", 
+                                  ["Upload a photo", "Take a photo"], 
+                                  horizontal=True)
             
-            # File uploader inside form
-            if photo_option == "Upload a photo":
+            if photo_option == "Take a photo":
+                st.info("Please allow camera access when prompted by your browser.")
+                camera_photo = st.camera_input("Take your photo")
+                if camera_photo:
+                    st.session_state.user_image = camera_photo.read()
+            else:
                 uploaded_file = st.file_uploader("Upload your profile photo", 
                                                type=['jpg', 'jpeg', 'png'])
-                if uploaded_file is not None:
+                if uploaded_file:
                     st.session_state.user_image = uploaded_file.read()
-                    st.success("Photo uploaded successfully!")
-                    st.image(st.session_state.user_image, width=200)
-            
-            # Show current photo if available
-            elif st.session_state.user_image:
-                st.image(st.session_state.user_image, caption="Current photo", width=200)
-            
-            # Personal Details
-            st.subheader("Personal Details")
+
+            # Basic Information Section
+            st.subheader("👤 Basic Information")
             col1, col2 = st.columns(2)
             
             with col1:
-                full_name = st.text_input("Full name", help="Required field")
-                education = st.selectbox("Highest level of education completed", 
-                                       EDUCATION_LEVELS, 
-                                       help="Required field")
-                major_selection = st.selectbox("Field of study/major", FIELDS_OF_STUDY)
+                full_name = st.text_input("Full Name*", help="Enter your legal full name")
+                email = st.text_input("Email Address*", help="Enter a valid email address")
+                linkedin_url = st.text_input("LinkedIn Profile URL (Optional)", 
+                                           help="e.g., https://www.linkedin.com/in/username")
             
             with col2:
-                age = st.number_input("Age", min_value=13, max_value=65, value=20)
-                if major_selection == "Others":
-                    major = st.text_input("Please specify your field of study")
-                else:
-                    major = major_selection
+                phone = st.text_input("Phone Number*", help="Include country code (e.g., +60123456789)")
+                country = st.selectbox("Country of Residence*", COUNTRIES)
+
+            # Experience Section
+            st.subheader("💼 Experience")
             
-            languages = st.multiselect("Select languages", LANGUAGES)
+            # Internships Form
+            st.write("Internships, Part-time, or Freelance Work")
+            internship_desc = st.text_input("Description", key="new_internship_desc")
+            col_int1, col_int2 = st.columns(2)
+            with col_int1:
+                internship_start = st.date_input("Start Date", key="new_internship_start")
+            with col_int2:
+                internship_end = st.date_input("End Date", key="new_internship_end")
             
-            # Submit button without key argument
-            submitted_basic = st.form_submit_button("Continue to Language Proficiency")
+            add_internship = st.form_submit_button("Add Internship")
+            if add_internship and internship_desc:
+                st.session_state.internships.append({
+                    "description": internship_desc,
+                    "start_date": internship_start.strftime("%B %Y"),
+                    "end_date": internship_end.strftime("%B %Y")
+                })
+                st.rerun()
+
+            # Display internships
+            for idx, internship in enumerate(st.session_state.internships):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.text(internship["description"])
+                with col2:
+                    st.text(f"{internship['start_date']} - {internship['end_date']}")
+                remove_internship = st.form_submit_button(f"Remove Internship {idx + 1}")
+                if remove_internship:
+                    st.session_state.internships.pop(idx)
+                    st.rerun()
+                st.markdown("---")
+
+            # Volunteer activities
+            st.write("Volunteer or Extracurricular Activities")
+            volunteer_desc = st.text_input("Description", key="new_volunteer_desc")
+            col_vol1, col_vol2 = st.columns(2)
+            with col_vol1:
+                volunteer_start = st.date_input("Start Date", key="new_volunteer_start")
+            with col_vol2:
+                volunteer_end = st.date_input("End Date", key="new_volunteer_end")
             
-            if submitted_basic:
-                if not full_name or not education:
-                    st.error("Please fill in all required fields")
-                    return None
+            add_volunteer = st.form_submit_button("Add Volunteer Activity")
+            if add_volunteer and volunteer_desc:
+                st.session_state.volunteer.append({
+                    "description": volunteer_desc,
+                    "start_date": volunteer_start.strftime("%B %Y"),
+                    "end_date": volunteer_end.strftime("%B %Y")
+                })
+                st.rerun()
+
+            # Display volunteer activities
+            for idx, volunteer in enumerate(st.session_state.volunteer):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.text(volunteer["description"])
+                with col2:
+                    st.text(f"{volunteer['start_date']} - {volunteer['end_date']}")
+                remove_volunteer = st.form_submit_button(f"Remove Volunteer Activity {idx + 1}")
+                if remove_volunteer:
+                    st.session_state.volunteer.pop(idx)
+                    st.rerun()
+                st.markdown("---")
+
+            # Professional Achievements/Rewards Section
+            st.write("Professional Achievements and Rewards")
+            achievement_desc = st.text_input("Description", key="new_achievement_desc")
+            col_ach1, col_ach2 = st.columns(2)
+            with col_ach1:
+                achievement_start = st.date_input("Start Date", key="new_achievement_start")
+            with col_ach2:
+                achievement_end = st.date_input("End Date", key="new_achievement_end")
+
+            add_achievement = st.form_submit_button("Add Achievement")
+            if add_achievement and achievement_desc:
+                st.session_state.achievements.append({
+                    "description": achievement_desc,
+                    "start_date": achievement_start.strftime("%B %Y"),
+                    "end_date": achievement_end.strftime("%B %Y")
+                })
+                st.rerun()
+
+            # Display achievements
+            for idx, achievement in enumerate(st.session_state.achievements):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.text(achievement["description"])
+                with col2:
+                    st.text(f"{achievement['start_date']} - {achievement['end_date']}")
+                remove_achievement = st.form_submit_button(f"Remove Achievement {idx + 1}")
+                if remove_achievement:
+                    st.session_state.achievements.pop(idx)
+                    st.rerun()
+                st.markdown("---")
+
+            # Key Projects Section
+            st.write("Key Projects and Roles")
+            project_desc = st.text_input("Description", key="new_project_desc")
+            col_proj1, col_proj2 = st.columns(2)
+            with col_proj1:
+                project_start = st.date_input("Start Date", key="new_project_start")
+            with col_proj2:
+                project_end = st.date_input("End Date", key="new_project_end")
+
+            add_project = st.form_submit_button("Add Project")
+            if add_project and project_desc:
+                st.session_state.projects.append({
+                    "description": project_desc,
+                    "start_date": project_start.strftime("%B %Y"),
+                    "end_date": project_end.strftime("%B %Y")
+                })
+                st.rerun()
+
+            # Display projects
+            for idx, project in enumerate(st.session_state.projects):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.text(project["description"])
+                with col2:
+                    st.text(f"{project['start_date']} - {project['end_date']}")
+                remove_project = st.form_submit_button(f"Remove Project {idx + 1}")
+                if remove_project:
+                    st.session_state.projects.pop(idx)
+                    st.rerun()
+                st.markdown("---")
+            # Language Selection Section
+            st.subheader("🌐 Language Selection")
+            languages = st.multiselect("Select Languages*", LANGUAGES,
+                                     help="Select all languages you can communicate in")
+
+            # Continue to Language Proficiency button
+            submitted = st.form_submit_button("Continue to Language Proficiency")
+            
+            if submitted:
                 if not languages:
                     st.error("Please select at least one language")
                     return None
+                    
+                # Store the data and move to language form
+                experience_data = {
+                    "internships": st.session_state.internships,
+                    "volunteer": st.session_state.volunteer
+                }
                 
-                st.session_state.temp_basic_info = {
+                personal_info = {
                     "name": full_name,
-                    "age": age,
-                    "education": education,
-                    "major": major,
+                    "email": email,
+                    "phone": phone,
+                    "linkedin_url": linkedin_url if linkedin_url else "Not provided",
+                    "country": country,
+                    "experience": experience_data,
                     "selected_languages": languages
                 }
+                
+                st.session_state.temp_basic_info = personal_info
                 st.session_state.show_language_form = True
                 st.rerun()
-    else:
-        st.write("### Basic Information")
-        st.write(f"Name: {st.session_state.temp_basic_info['name']}")
-        st.write(f"Education: {st.session_state.temp_basic_info['education']}")
-        
-        # Display current photo if available
-        if st.session_state.user_image:
-            st.image(st.session_state.user_image, caption="Your Profile Photo", width=200)
-        
-        st.subheader("Set Language Proficiencies")
-        language_proficiencies = {}
-        
-        # Language Proficiency Form
-        with st.form("language_form"):
-            for lang in st.session_state.temp_basic_info["selected_languages"]:
-                if lang == "Others":
-                    custom_lang = st.text_input("Specify other language")
-                    if custom_lang:
-                        proficiency = st.select_slider(
-                            f"Proficiency in {custom_lang}",
-                            options=["Beginner", "Intermediate", "Advanced", "Native/Fluent"]
-                        )
-                        language_proficiencies[custom_lang] = proficiency
-                else:
-                    proficiency = st.select_slider(
-                        f"Proficiency in {lang}",
-                        options=["Beginner", "Intermediate", "Advanced", "Native/Fluent"]
-                    )
-                    language_proficiencies[lang] = proficiency
 
-            # Form submit buttons without key arguments
+    else:
+        # Language proficiency form
+        with st.form("language_form"):
+            st.write("### Basic Information")
+            st.write(f"Name: {st.session_state.temp_basic_info['name']}")
+            st.write(f"Email: {st.session_state.temp_basic_info['email']}")
+            
+            if st.session_state.user_image:
+                st.image(st.session_state.user_image, caption="Profile Photo", width=200)
+            
+            # Language Proficiency Section
+            st.subheader("🌐 Set Language Proficiencies")
+            language_proficiencies = {}
+            
+            for lang in st.session_state.temp_basic_info["selected_languages"]:
+                proficiency = st.select_slider(
+                    f"Proficiency in {lang}",
+                    options=["Beginner", "Intermediate", "Advanced", "Native/Fluent"]
+                )
+                language_proficiencies[lang] = proficiency
+            
+            # Back and Submit buttons
             col1, col2 = st.columns(2)
             with col1:
                 if st.form_submit_button("Back"):
                     st.session_state.show_language_form = False
                     st.rerun()
             with col2:
-                if st.form_submit_button("Next"):
+                if st.form_submit_button("Submit"):
                     complete_data = st.session_state.temp_basic_info.copy()
                     complete_data["languages"] = language_proficiencies
                     return complete_data
     
     return None
+def validate_form_data(
+    full_name, email, phone, gender, languages, consent, current_status, status_details
+):
+    """
+    Validate the personal information form data.
+    """
+    # Validate required fields
+    if not full_name:
+        st.error("Full name is required.")
+        return False
+    if not email or not validate_email(email):
+        st.error("A valid email address is required.")
+        return False
+    if not phone or not validate_phone(phone):
+        st.error("A valid phone number is required.")
+        return False
+    if gender == "Select Gender":
+        st.error("Please select a gender.")
+        return False
+    if not languages:
+        st.error("Please select at least one language.")
+        return False
+    if not consent:
+        st.error("You must agree to the consent checkbox to proceed.")
+        return False
+
+    # Validate current status details
+    if current_status == "Working":
+        if not status_details.get("job_title"):
+            st.error("Please provide your job title.")
+            return False
+        if not status_details.get("employment_type"):
+            st.error("Please specify your employment type.")
+            return False
+    elif current_status == "Studying":
+        if not status_details.get("field_of_study"):
+            st.error("Please provide your field of study.")
+            return False
+        if not status_details.get("institution_name"):
+            st.error("Please provide your institution name.")
+            return False
+
+    return True
+
+def render_personality_assessment():
+    """Render personality assessment questions and process with GPT"""
+    st.header("Personality Assessment")
+    
+    with st.form("personality_assessment_form"):
+        # Define all questions and options in a structured format
+        assessment_sections = {
+            "Self-Reflection and Behavior": {
+                "q1": {
+                    "question": "How do you typically handle unexpected challenges?",
+                    "options": [
+                        "I adapt quickly and focus on finding solutions",
+                        "I analyze the situation thoroughly before acting",
+                        "I rely on others for support or advice",
+                        "I feel overwhelmed but try to push through"
+                    ]
+                },
+                "q2": {
+                    "question": "When working in a team, how do you contribute?",
+                    "options": [
+                        "I take charge and lead the group",
+                        "I provide insights and ideas from the background",
+                        "I ensure everyone stays on track and organized",
+                        "I prefer to follow instructions and support the team"
+                    ]
+                },
+                "q3": {
+                    "question": "How do you react to constructive criticism?",
+                    "options": [
+                        "I welcome it and use it to improve",
+                        "I analyze the feedback to see if it aligns with my views",
+                        "I feel uncomfortable but try to work on it",
+                        "I tend to take it personally and avoid similar situations"
+                    ]
+                },
+                "q4": {
+                    "question": "What motivates you the most at work?",
+                    "options": [
+                        "Achieving goals and recognition",
+                        "Learning and developing new skills",
+                        "Collaborating with others",
+                        "Stability and security"
+                    ]
+                },
+                "q5": {
+                    "question": "How do you approach decision-making?",
+                    "options": [
+                        "I make quick decisions and trust my instincts",
+                        "I gather all available information before deciding",
+                        "I consult others and value their opinions",
+                        "I avoid making decisions if possible"
+                    ]
+                }
+            }
+        }
+
+        # Collect responses
+        responses = {}
+        
+        # Display questions by section
+        for section_name, questions in assessment_sections.items():
+            st.subheader(section_name)
+            for q_id, q_data in questions.items():
+                response = st.radio(
+                    q_data["question"],
+                    q_data["options"],
+                    key=q_id
+                )
+                responses[q_id] = {
+                    "question": q_data["question"],
+                    "answer": response
+                }
+
+        submitted = st.form_submit_button("Submit Assessment")
+        if submitted:
+            # Format the response for GPT
+            formatted_responses = {
+                "sections": {
+                    section_name: {
+                        q_id: {
+                            "question": q_info["question"],
+                            "answer": responses[q_id]["answer"]
+                        }
+                        for q_id, q_info in questions.items()
+                    }
+                    for section_name, questions in assessment_sections.items()
+                }
+            }
+
+            # Add personal_info to the call
+            with st.spinner("Analyzing your personality profile..."):
+                analysis = analyze_personality_with_gpt(
+                    formatted_responses,
+                    st.session_state.personal_info,  # Pass personal_info from session state
+                    st.session_state.openai_api_key
+                )
+                if analysis:
+                    return {
+                        'responses': formatted_responses,
+                        'analysis': analysis
+                    }
+    
+    return None
+
+def analyze_personality_with_gpt(responses, personal_info, api_key):
+    """
+    Analyze personality assessment responses with GPT, incorporating personal profile
+    """
+    client = OpenAI(api_key=api_key)
+
+    # Ensure all expected sections exist, even if empty
+    sections = {
+        "Self-Reflection and Behavior": responses['sections'].get("Self-Reflection and Behavior", {}),
+        "Social Interaction and Communication": responses['sections'].get("Social Interaction and Communication", {}),
+        "Work Preferences and Adaptability": responses['sections'].get("Work Preferences and Adaptability", {})
+    }
+
+    # Check for 'dob' and calculate age or provide a fallback
+    dob = personal_info.get('dob', None)
+    age = calculate_age(dob) if dob else "Unknown"
+
+    prompt = f"""As a career psychologist, analyze these personality assessment responses alongside the individual's profile:
+
+PERSONAL PROFILE:
+- Name: {personal_info.get('name', 'N/A')}
+- Age: {age} years
+- Education: {personal_info.get('education', 'N/A')} in {personal_info.get('major', 'N/A')}
+- Current Status: {personal_info.get('current_status', 'N/A')}
+{format_status_details(personal_info.get('status_details', {}), personal_info.get('current_status', 'N/A'))}
+- Experience Level: {personal_info.get('experience', 'N/A')}
+- Languages: {format_languages(personal_info.get('languages', {}))}
+
+PERSONALITY ASSESSMENT RESPONSES:
+1. Self-Reflection and Behavior:
+{json.dumps(sections["Self-Reflection and Behavior"], indent=2)}
+
+2. Social Interaction and Communication:
+{json.dumps(sections["Social Interaction and Communication"], indent=2)}
+
+3. Work Preferences and Adaptability:
+{json.dumps(sections["Work Preferences and Adaptability"], indent=2)}
+
+Please provide a comprehensive analysis..."""
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"Error in personality analysis: {str(e)}")
+        return None
+
+def calculate_age(dob_str):
+    """Calculate age from date of birth string"""
+    dob = datetime.datetime.strptime(dob_str, "%Y-%m-%d").date()
+    today = datetime.date.today()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+def format_status_details(details, status):
+    """Format status details based on current status"""
+    if status == "Working":
+        return f"  • Job Title: {details.get('job_title', 'N/A')}\n  • Employment Type: {details.get('employment_type', 'N/A')}"
+    elif status == "Studying":
+        return f"  • Field of Study: {details.get('field_of_study', 'N/A')}\n  • Institution: {details.get('institution_name', 'N/A')}"
+    return "  • No additional details provided"
+
+def format_languages(languages):
+    """Format language proficiencies"""
+    return ", ".join([f"{lang} ({level})" for lang, level in languages.items()])
 def create_front_page(styles, personal_info):
     """Create the front page of the report with user photo."""
     import os
@@ -962,7 +1338,7 @@ def create_front_page(styles, personal_info):
         
     return elements
 def render_work_experience():
-    """Render the work experience form."""
+    """Render the work experience form with date ranges."""
     st.header("Work Experience")
     exp_sections = {
         "internships": {
@@ -989,146 +1365,203 @@ def render_work_experience():
                 placeholder=section_info["placeholder"]
             )
             
-            # if description:  # Only show dates if description is provided
-            #     col1, col2 = st.columns(2)
-            #     with col1:
-            #         start_date = st.date_input(
-            #             "Start Date",
-            #             key=f"start_{section_id}",
-            #             min_value=datetime.date(2000, 1, 1)
-            #         )
-            #     with col2:
-            #         end_date = st.date_input(
-            #             "End Date",
-            #             key=f"end_{section_id}",
-            #             min_value=start_date
-            #         )
-                
-            #     experiences[section_id] = {
-            #         "title": section_info["title"],
-            #         "description": description,
-            #         "period": f"{start_date.strftime('%m/%Y')} - {end_date.strftime('%m/%Y')}"
-            #     }
-            
-            st.markdown("---")
             if description:
+                # Date range columns
+                col1, col2 = st.columns(2)
+                with col1:
+                    start_date = st.date_input(
+                        "Start Date",
+                        key=f"start_{section_id}",
+                        min_value=datetime.date(2000, 1, 1)
+                    )
+                with col2:
+                    end_date = st.date_input(
+                        "End Date",
+                        key=f"end_{section_id}",
+                        min_value=start_date
+                    )
+
+                # Current status checkbox
+                is_current = st.checkbox("This is my current role/activity", key=f"current_{section_id}")
+                
                 experiences[section_id] = {
                     "title": section_info["title"],
                     "description": description,
-                    # "period": f"{start_date.strftime('%m/%Y')} - {end_date.strftime('%m/%Y')}"
-                }           
+                    "start_date": start_date.strftime("%Y-%m"),
+                    "end_date": "Present" if is_current else end_date.strftime("%Y-%m"),
+                    "is_current": is_current
+                }
+            
+            st.markdown("---")
         
         if st.form_submit_button("Continue"):
             return experiences or {"general": {"title": "Experience", "description": "No specific experience provided."}}
     return None
 def render_career_aspirations():
+    """Render the Career Aspirations form and store data."""
     st.header("Career Aspirations")
-    
-    with st.form("career_aspirations"):
-        aspirations = {}
-        sections = {
-            "career_goals": {
-                "title": "Career Goals",
-                "options": [
-                    "I want to secure my first job in a relevant field.",
-                    "I aim to transition into a new industry or role.",
-                    "I want to enhance my technical or professional skills.",
-                    "I aspire to take on leadership roles in my career.",
-                    "I plan to start my own business or pursue entrepreneurship.",
-                    "I aim to become a subject matter expert in my field.",
-                    "I want to achieve financial stability and career growth.",
-                    "I aspire to contribute to impactful projects or social causes."
-                ]
-            },
-            "industries": {
-                "title": "Industries or sectors of interest",
-                "options": [
-                    "Technology and IT services",
-                    "Healthcare or biotechnology",
-                    "Education and training",
-                    "Finance and banking",
-                    "Manufacturing and engineering",
-                    "Sustainability and renewable energy",
-                    "Creative arts and media",
-                    "Government, public services, or non-profits"
-                ]
-            },
-            "roles": {
-                "title": "Preferred roles or job titles",
-                "options": [
-                    "Software developer or data scientist",
-                    "Project manager or team lead",
-                    "Marketing, sales, or branding",
-                    "Business analyst or consultant",
-                    "Graphic designer or content creator",
-                    "Human resources or talent management",
-                    "Research, academia, or innovation"
-                ]
-            },
-            "locations":{
-                "title": "Desired work location",
-                "options": [
-                    "I prefer working in my hometown or current city.",
-                    "I am open to relocating nationally for the right opportunity.",
-                    "I am eager to explore international opportunities.",
-                    "I prefer remote or hybrid work arrangements.",
-                    "I want to work in a specific country or region (e.g., USA, Europe)."
-                ]
-            },
-            "Interest":{
-                "title": "Best describe(s) your desired roles",
-                "options": [
-                    "I want to pursue entrepreneurship and build my own business.",
-                    "I prefer freelancing to maintain flexibility and independence.",
-                    "I am interested in corporate roles to gain structured experience.",
-                    "I want to combine freelance and corporate roles for variety.",
-                    "I am open to all paths and will decide based on opportunities."
-                ]
-            },
-            "Target":{
-                "title": "Best describe(s) your preferred employers",
-                "options": [
-                    "I aspire to work for globally renowned companies (e.g., Google, Microsoft).",
-                    "I want to join startups with innovative cultures.",
-                    "I aim to work for established companies in my region.",
-                    "I want to work with companies known for social impact and sustainability.",
-                    "I aspire to join industry leaders in my field of interest.",
-                    "I am open to exploring companies aligned with my values and skills."
-                ]
-            }
-        }
 
+    # Define sections and their options
+    sections = {
+        "career_goals": {
+            "title": "Career Goals",
+            "options": [
+                "I want to secure my first job in a relevant field.",
+                "I aim to transition into a new industry or role.",
+                "I want to enhance my technical or professional skills.",
+                "I aspire to take on leadership roles in my career.",
+                "I plan to start my own business or pursue entrepreneurship.",
+                "I aim to become a subject matter expert in my field.",
+                "I want to achieve financial stability and career growth.",
+                "I aspire to contribute to impactful projects or social causes."
+            ]
+        },
+        "industries": {
+            "title": "Industries or Sectors of Interest",
+            "options": [
+                "Technology and IT services",
+                "Healthcare or biotechnology",
+                "Education and training",
+                "Finance and banking",
+                "Manufacturing and engineering",
+                "Sustainability and renewable energy",
+                "Creative arts and media",
+                "Government, public services, or non-profits"
+            ]
+        },
+        "roles": {
+            "title": "Preferred Roles or Job Titles",
+            "options": [
+                "Software developer or data scientist",
+                "Project manager or team lead",
+                "Marketing, sales, or branding",
+                "Business analyst or consultant",
+                "Graphic designer or content creator",
+                "Human resources or talent management",
+                "Research, academia, or innovation"
+            ]
+        },
+        "locations": {
+            "title": "Desired Work Location",
+            "options": [
+                "I prefer working in my hometown or current city.",
+                "I am open to relocating nationally for the right opportunity.",
+                "I am eager to explore international opportunities.",
+                "I prefer remote or hybrid work arrangements.",
+                "I want to work in a specific country or region (e.g., USA, Europe)."
+            ]
+        },
+        "interest": {
+            "title": "Best Describe(s) Your Desired Roles",
+            "options": [
+                "I want to pursue entrepreneurship and build my own business.",
+                "I prefer freelancing to maintain flexibility and independence.",
+                "I am interested in corporate roles to gain structured experience.",
+                "I want to combine freelance and corporate roles for variety.",
+                "I am open to all paths and will decide based on opportunities."
+            ]
+        },
+        "target": {
+            "title": "Best Describe(s) Your Preferred Employers",
+            "options": [
+                "I aspire to work for globally renowned companies (e.g., Google, Microsoft).",
+                "I want to join startups with innovative cultures.",
+                "I aim to work for established companies in my region.",
+                "I want to work with companies known for social impact and sustainability.",
+                "I aspire to join industry leaders in my field of interest.",
+                "I am open to exploring companies aligned with my values and skills."
+            ]
+        }
+    }
+
+    temp_aspirations = {}
+    with st.form("career_aspirations_form"):
+        # Render form sections
         for key, section in sections.items():
             st.subheader(section["title"])
             selected = st.multiselect(
                 section["title"],
                 section["options"],
-                key=key
+                key=f"{key}_multiselect"
             )
             other = st.text_input(f"Other {section['title'].lower()} (optional)", key=f"other_{key}")
-            aspirations[key] = selected + ([other] if other else [])
+            temp_aspirations[key] = selected + ([other] if other else [])
 
+        # Handle form submission
         if st.form_submit_button("Submit"):
-            if not any(aspirations.values()):
-                st.error("Please fill in at least one section")
+            if not any(temp_aspirations.values()):
+                st.error("Please fill in at least one section.")
                 return None
-            return aspirations
+
+            # Update session state only after submission
+            if "career_aspirations" not in st.session_state:
+                st.session_state["career_aspirations"] = {}
+
+            st.session_state["career_aspirations"].update(temp_aspirations)
+            st.success("Career aspirations saved successfully!")
+            return temp_aspirations
+
     return None
+
 
 def get_ai_analysis2(user_data, api_key):
     client = OpenAI(api_key=api_key)
-    
-    prompt = f"""As a career advisor, analyze this profile and provide specific recommendations:
 
-Profile:
-{json.dumps(user_data, indent=2)}
+    # Extract user details for more personalized examples
+    name = user_data["personal_info"].get("name", "the user")
+    age = user_data["personal_info"].get("age", "unknown age")
+    education = user_data["personal_info"].get("education", "no education data")
+    work_experience = user_data.get("work_experience", {})
+    career_aspirations = user_data.get("career_aspirations", {})
+    personality_assessment = user_data.get("personality_assessment", {})
+    preferred_roles = career_aspirations.get("roles", [])
+    target_industries = career_aspirations.get("industries", [])
+    preferred_locations = career_aspirations.get("locations", [])
+    current_skills = user_data["personal_info"].get("skills", "not specified")
+    language_proficiency = user_data["personal_info"].get("languages", {})
 
-Provide a detailed analysis of the above findings in 1000 words with real examples or references and an additional analysis on:
+    # Build a specific and detailed prompt
+    prompt = f"""
+    You are a career advisor tasked with providing personalized career guidance for {name}. Here is the detailed profile:
 
-1) based on the profile of the person given earlier, and the career aspirations given, what are the required skills and competencies that are needed for this person  to have? Explain in 700 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points(numbering) with long examples
+    ### Personal Profile:
+    - Name: {name}
+    - Age: {age}
+    - Education: {education}
+    - Current Skills: {current_skills}
+    - Language Proficiency: {', '.join([f"{lang} ({level})" for lang, level in language_proficiency.items()])}
 
-2) based on the profile of the person given earlier, and the career aspirations given, what are the required personality or attributes that are needed for this person  to have? Explain in 700 words with real world examples and highlight any potential discrepancies.Do it in exactly 5 points points(numbering) with long examples """
+    ### Work Experience:
+    {json.dumps(work_experience, indent=2)}
 
+    ### Career Aspirations:
+    - Preferred Roles: {', '.join(preferred_roles) if preferred_roles else 'Not specified'}
+    - Target Industries: {', '.join(target_industries) if target_industries else 'Not specified'}
+    - Preferred Locations: {', '.join(preferred_locations) if preferred_locations else 'Not specified'}
+
+    ### Personality Assessment:
+    {json.dumps(personality_assessment, indent=2)}
+
+    ### Analysis Instructions:
+    1. **Comprehensive Profile Analysis**:
+        - Analyze {name}'s background, work experience, personality, and aspirations.
+        - Highlight specific strengths, advantages, and current gaps.
+        - Use real-world examples to showcase how these traits can align with their aspirations.
+
+    2. **Skill and Competency Recommendations**:
+        - Identify exactly 5 critical skills or competencies that {name} needs to succeed in their preferred roles ({', '.join(preferred_roles)}).
+        - Explain how these skills can bridge any current gaps based on their work experience and aspirations.
+        - Provide long, detailed real-world examples or use cases for each skill.
+
+    3. **Personality and Attributes Recommendations**:
+        - Highlight exactly 5 personality traits or attributes {name} needs to develop or enhance for success in the target industries ({', '.join(target_industries)}).
+        - Include detailed examples of situations where these traits are critical and explain potential gaps {name} might face.
+        - Use a conversational and engaging tone, tailored to inspire action.
+
+    Provide actionable recommendations in each section and ensure the guidance aligns with {name}'s unique goals and background.
+    """
+
+    # API call to OpenAI
     try:
         response = client.chat.completions.create(
             model="gpt-4-turbo-preview",
@@ -1140,6 +1573,8 @@ Provide a detailed analysis of the above findings in 1000 words with real exampl
         st.error(f"Error getting AI analysis: {str(e)}")
         return None
     
+
+    
 def get_ai_analysis1(user_data, api_key):
     client = OpenAI(api_key=api_key)
     
@@ -1150,7 +1585,8 @@ Profile:
 
 Provide structured analysis covering:
 1. Summarize key characteristics in 500 words
-2. Identify key strengths and advantages. Do it in 5 points(numbering) with example"""
+2. Identify key strengths and advantages. Do it in 5 points(numbering) with example
+3. make a summary table for his characteristicss"""
 
     try:
         response = client.chat.completions.create(
@@ -1182,77 +1618,170 @@ def get_ai_analysis(user_data, api_key, is_initial=True):
         st.error(f"Error getting AI analysis: {str(e)}")
         return None
 def main():
-    """Main application function."""
-    st.set_page_config(page_title="Career Analysis", page_icon="📊", layout="wide")
+    """Main application function with enhanced current status handling"""
+    st.set_page_config(page_title="KerjayaKu", page_icon="📊", layout="wide")
     
     initialize_session_state()
     render_header()
+
+    # API Key handling
+    if 'openai_api_key' not in st.session_state:
+        st.session_state.openai_api_key = ''
     
-    # Initialize analysis variables
-    if 'analysis1' not in st.session_state:
-        st.session_state.analysis1 = None
-    if 'analysis2' not in st.session_state:
-        st.session_state.analysis2 = None
-    
-    # API Key input in sidebar
     with st.sidebar:
         st.title("Settings")
-        api_key = st.text_input("OpenAI API Key", type="password")
-        
-        if not api_key:
+        api_key_input = st.text_input("OpenAI API Key", type="password", value=st.session_state.openai_api_key)
+        if api_key_input:
+            st.session_state.openai_api_key = api_key_input
+        if not st.session_state.openai_api_key:
             st.warning("Please enter your OpenAI API key to continue.")
             return
-    
-    # Main flow
-    personal_info = render_personal_info()
-    if personal_info:
-        st.session_state.user_data['personal_info'] = personal_info
-        st.session_state.show_work = True
-    
-    if st.session_state.show_work:
-        work_exp = render_work_experience()
-        if work_exp:
-            st.session_state.user_data['work_experience'] = work_exp
-            with st.expander("📊 Initial Analysis", expanded=True):
-                st.session_state.analysis1 = get_ai_analysis1(st.session_state.user_data, api_key)
-                if st.session_state.analysis1:
-                    st.markdown("#### Personal Profile Overview")
-                    st.markdown(st.session_state.analysis1)
-            st.session_state.show_aspirations = True
-    
-    if st.session_state.show_aspirations:
-        career_aspirations = render_career_aspirations()
-        if career_aspirations:
-            st.session_state.user_data['career_aspirations'] = career_aspirations
-            st.session_state.show_analysis = True
-            
-            with st.expander("📊 Final Career Analysis", expanded=True):
-                st.session_state.analysis2 = get_ai_analysis2(st.session_state.user_data, api_key)
-                if st.session_state.analysis2:
-                    st.markdown("#### Career Recommendations")
-                    st.markdown(st.session_state.analysis2)
+
+    st.title("KerjayaKu - AI-Powered Career Development Portal")
+
+    # Step 1: Personal Information with Enhanced Current Status
+    with st.container():
+        st.write("## Step 1: Personal Information")
+        if st.session_state.current_step == 0:
+            col1, col2 = st.columns(2)
+            with col1:
+                personal_info = render_personal_info()
+                if personal_info:
+                    # Validate current status details
+                    if personal_info.get('current_status') == "Working":
+                        if not personal_info.get('status_details', {}).get('job_title'):
+                            st.error("Please enter your job title")
+                            return
+                    elif personal_info.get('current_status') == "Studying":
+                        if not (personal_info.get('status_details', {}).get('field_of_study') 
+                               and personal_info.get('status_details', {}).get('institution_name')):
+                            st.error("Please complete all study details")
+                            return
                     
-                    # Generate PDF only if both analyses are available
-                    if st.session_state.analysis1 and st.session_state.analysis2:
-                        try:
-                            pdf_buffer = generate_pdf(
-                                st.session_state.analysis1,
-                                st.session_state.analysis2,
-                                st.session_state.user_data['personal_info'],
-                                st.session_state.user_data.get('work_experience', {})
-                            )
-                            
-                            # Download button
-                            st.download_button(
-                                "📥 Download Career Analysis Report",
-                                data=pdf_buffer,
-                                file_name=f"career_analysis_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                                mime="application/pdf",
-                                help="Click to download your personalized career analysis report"
-                            )
-                        except Exception as e:
-                            st.error(f"Error generating PDF: {str(e)}")
-                            print(f"Detailed error: {str(e)}")  # Add detailed error logging
+                    st.session_state["personal_info"] = personal_info
+                    st.session_state.current_step = 1
+                    st.success("Personal information submitted successfully!")
+                    st.rerun()
+            
+            with col2:
+                st.info("""
+                📌 Note:
+                - All fields marked with * are required
+                - Please provide accurate information for better analysis
+                - Make sure to complete all relevant fields based on your current status
+                """)
+        
+        elif "personal_info" in st.session_state:
+            st.success("✓ Personal Information Completed")
+            with st.expander("Review Personal Information"):
+                display_personal_info(st.session_state["personal_info"])
+
+    # Step 2: Personality Assessment
+    if st.session_state.current_step >= 1:
+        with st.container():
+            st.write("## Step 2: Personality Assessment")
+            if st.session_state.current_step == 1:
+                personality_data = render_personality_assessment()
+                if personality_data:
+                    st.session_state["personality_assessment"] = personality_data
+                    st.session_state.current_step = 2
+                    st.success("Personality assessment completed!")
+                    st.rerun()
+            elif "personality_assessment" in st.session_state:
+                st.success("✓ Personality Assessment Completed")
+                with st.expander("View Personality Analysis"):
+                    st.markdown(st.session_state["personality_assessment"]["analysis"])
+
+
+    # Step 4: Career Aspirations
+    if st.session_state.current_step >= 2:
+        with st.container():
+            st.write("## Step 3: Career Aspirations")
+            if st.session_state.current_step == 2:
+                career_aspirations = render_career_aspirations()
+                if career_aspirations:
+                    st.session_state["career_aspirations"] = career_aspirations
+                    
+                    # Combine all data for analysis
+                    analysis_data = {
+                        "personal_info": st.session_state["personal_info"],
+                        "personality_assessment": st.session_state["personality_assessment"],
+                        "work_experience": st.session_state["work_experience"],
+                        "career_aspirations": career_aspirations
+                    }
+                    
+                    with st.spinner("Generating comprehensive career analysis..."):
+                        final_analysis = get_ai_analysis2(analysis_data, st.session_state.openai_api_key)
+                        st.session_state["final_analysis"] = final_analysis
+                        st.session_state.current_step = 3
+                        st.success("Career analysis completed!")
+                        st.rerun()
+            
+            elif "career_aspirations" in st.session_state:
+                st.success("✓ Career Aspirations Completed")
+                with st.expander("View Career Analysis"):
+                    st.markdown(st.session_state["final_analysis"])
+
+    # Final Report Generation
+    if st.session_state.current_step == 3:
+        st.write("## Final Report")
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.write("### Review Your Information")
+            tabs = st.tabs(["Personal Info", "Personality", "Aspirations"])
+            
+            with tabs[0]:
+                display_personal_info(st.session_state["personal_info"])
+            with tabs[1]:
+                st.markdown(st.session_state["personality_assessment"]["analysis"])
+            with tabs[2]:
+                st.markdown(st.session_state["final_analysis"])
+
+        with col2:
+            st.write("### Generate Report")
+            if st.button("📄 Generate Complete Report", type="primary"):
+                try:
+                    with st.spinner("Generating your career analysis report..."):
+                        pdf_buffer = generate_pdf(
+                            st.session_state["personality_assessment"]["analysis"],
+                            st.session_state["final_analysis"],
+                            st.session_state["personal_info"]
+                        )
+                        
+                        st.success("Report generated successfully!")
+                        st.download_button(
+                            "📥 Download Career Analysis Report",
+                            data=pdf_buffer,
+                            file_name=f"career_analysis_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                            mime="application/pdf"
+                        )
+                except Exception as e:
+                    st.error(f"Error generating report: {str(e)}")
+                    st.info("Please try again or contact support if the issue persists.")
+
+def display_personal_info(info):
+    """Helper function to display personal information"""
+    st.write(f"**Name:** {info.get('name')}")
+    st.write(f"**Email:** {info.get('email')}")
+    # st.write(f"**Current Status:** {info.get('current_status')}")
+    
+    # Display status-specific details
+    status_details = info.get('status_details', {})
+    if info.get('current_status') == "Working":
+        st.write(f"**Job Title:** {status_details.get('job_title')}")
+        st.write(f"**Employment Type:** {status_details.get('employment_type')}")
+    elif info.get('current_status') == "Studying":
+        st.write(f"**Field of Study:** {status_details.get('field_of_study')}")
+        st.write(f"**Institution:** {status_details.get('institution_name')}")
+
+def display_work_experience(experience):
+    """Helper function to display work experience"""
+    for exp_type, details in experience.items():
+        st.subheader(details.get('title', ''))
+        st.write(f"**Period:** {details.get('start_date')} - {details.get('end_date')}")
+        st.write(details.get('description', ''))
+        st.markdown("---")
 
 if __name__ == "__main__":
     main()
