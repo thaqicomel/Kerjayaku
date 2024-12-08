@@ -1,6 +1,34 @@
 import streamlit as st
-import datetime
 from openai import OpenAI
+import datetime
+import re
+import io
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image, NextPageTemplate
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
+import datetime
+import re
+import os
+import uuid
+from reportlab.platypus import Frame, PageTemplate, BaseDocTemplate, PageBreak
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Image, NextPageTemplate
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+import datetime
+import ssl
+import logging
 import json
 import os
 import io
@@ -112,227 +140,386 @@ COUNTRIES = [
     "Zambia", "Zimbabwe"
 ]
 
-##PDF
 def create_custom_styles():
-    """
-    Create enhanced custom styles including all required styles
-    """
-    styles = getSampleStyleSheet()
+    base_styles = getSampleStyleSheet()
     
-    # Define modern color scheme
-    custom_colors = {
-        'primary': colors.HexColor('#1a1a1a'),      # Main text
-        'secondary': colors.HexColor('#4A5568'),    # Secondary text
-        'accent': colors.HexColor('#2B6CB0'),       # Titles and headings
-        'background': colors.HexColor('#F7FAFC'),   # Background elements
-        'divider': colors.HexColor('#E2E8F0'),      # Lines and dividers
-        'bullet': colors.HexColor('#3182CE'),       # Bullet points
-        'highlight_bg': colors.HexColor('#EBF8FF'), # Highlight box background
-        'highlight_border': colors.HexColor('#90CDF4') # Highlight box border
-    }
-    
-    return {
-        'title': ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Title'],
-            fontSize=24,
-            textColor=custom_colors['accent'],
-            spaceAfter=30,
-            alignment=TA_LEFT,
-            fontName='Helvetica-Bold'
-        ),
-        'heading': ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading1'],
-            fontSize=18,
-            textColor=custom_colors['primary'],
-            spaceBefore=20,
-            spaceAfter=10,
-            fontName='Helvetica-Bold',
-            leading=22
-        ),
-        'subheading': ParagraphStyle(
-            'CustomSubheading',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=custom_colors['secondary'],
-            spaceBefore=15,
-            spaceAfter=8,
-            fontName='Helvetica-Bold',
-            leading=18
-        ),
-        'content': ParagraphStyle(
-            'CustomContent',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['primary'],
-            alignment=TA_JUSTIFY,
-            spaceBefore=6,
-            spaceAfter=6,
-            fontName='Helvetica',
-            leading=16,
-            firstLineIndent=20
-        ),
-        'bullet_main': ParagraphStyle(
-            'BulletMain',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['primary'],
-            leftIndent=30,
-            bulletIndent=15,
-            spaceBefore=6,
-            spaceAfter=6,
-            fontName='Helvetica-Bold',
-            leading=16,
-            bulletColor=custom_colors['bullet']
-        ),
-        'bullet_sub': ParagraphStyle(
-            'BulletSub',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['secondary'],
-            leftIndent=45,
-            bulletIndent=30,
-            spaceBefore=3,
-            spaceAfter=3,
-            fontName='Helvetica',
-            leading=14
-        ),
-        'bullet_subsub': ParagraphStyle(
-            'BulletSubSub',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['secondary'],
-            leftIndent=60,
-            bulletIndent=45,
-            spaceBefore=2,
-            spaceAfter=2,
-            fontName='Helvetica',
-            leading=14
-        ),
-        'highlight': ParagraphStyle(
-            'HighlightContent',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['primary'],
-            alignment=TA_LEFT,
-            spaceBefore=0,
-            spaceAfter=0,
-            fontName='Helvetica',
-            leading=16
-        ),
-        'point_title': ParagraphStyle(
-            'PointTitle',
-            parent=styles['Normal'],
-            fontSize=12,
-            textColor=custom_colors['accent'],
-            fontName='Helvetica-Bold',
-            leading=16
-        ),
-        'toc_title': ParagraphStyle(
-            'TOCTitle',
-            parent=styles['Title'],
-            fontSize=18,
-            textColor=custom_colors['accent'],
-            spaceAfter=20,
-            alignment=TA_LEFT,
-            fontName='Helvetica-Bold'
-        ),
-        'toc_entry': ParagraphStyle(
-            'TOCEntry',
-            parent=styles['Normal'],
-            fontSize=12,
-            textColor=custom_colors['primary'],
-            fontName='Helvetica',
-            leading=16,
-            spaceBefore=6,
-            spaceAfter=6
-        ),
-        'toc_entry_level2': ParagraphStyle(
-            'TOCEntryLevel2',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=custom_colors['secondary'],
-            fontName='Helvetica',
-            leading=14,
-            leftIndent=20,
-            spaceBefore=4,
-            spaceAfter=4
-        )
-    }
+    try:
+        pdfmetrics.registerFont(TTFont('Lato', 'fonts/Lato-Regular.ttf'))
+        pdfmetrics.registerFont(TTFont('Lato-Bold', 'fonts/Lato-Bold.ttf'))
+        pdfmetrics.registerFont(TTFont('Lato-Italic', 'fonts/Lato-Italic.ttf'))
+        pdfmetrics.registerFont(TTFont('Lato-BoldItalic', 'fonts/Lato-BoldItalic.ttf'))
+        base_font = 'Lato'
+        bold_font = 'Lato-Bold'
+    except:
+        base_font = 'Helvetica'
+        bold_font = 'Helvetica-Bold'
 
-def create_highlight_box(text, styles, include_number=None):
-    """Create highlighted box for key content with optional numbering"""
-    # Default background and border colors from styles
-    bg_color = colors.HexColor('#EBF8FF')  # Light blue background
-    border_color = colors.HexColor('#90CDF4')  # Blue border
+    custom_styles = {}
     
-    content = text
-    if include_number is not None:
-        content = f"Point {include_number}: {text}"
-    
-    return Table(
-        [[Paragraph(clean_text(content), styles['highlight'])]],
-        colWidths=[7*inch],
-        style=TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), bg_color),
-            ('BOX', (0, 0), (-1, -1), 1, border_color),
-            ('TOPPADDING', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('LEFTPADDING', (0, 0), (-1, -1), 15),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-        ])
+    # Normal style (both capitalized and lowercase versions)
+    custom_styles['Normal'] = ParagraphStyle(
+        'Normal',
+        parent=base_styles['Normal'],
+        fontSize=10,
+        leading=12,
+        fontName=base_font,
+        alignment=TA_JUSTIFY
     )
-def process_section_content(content, styles, elements):
-    """Process section content with enhanced bullet points and highlight boxes."""
-    if not content:  # Ensure content is not None
+    
+    custom_styles['normal'] = custom_styles['Normal']  # Add lowercase version
+    
+    # TOC style
+    custom_styles['TOCEntry'] = ParagraphStyle(
+        'TOCEntry',
+        parent=base_styles['Normal'],
+        fontSize=12,
+        leading=16,
+        leftIndent=20,
+        fontName=base_font,
+        alignment=TA_JUSTIFY
+    )
+    
+    custom_styles['toc'] = custom_styles['TOCEntry']  # Add lowercase version
+    
+    # Title style
+    custom_styles['title'] = ParagraphStyle(
+        'CustomTitle',
+        parent=custom_styles['Normal'],  # Changed parent to our custom Normal
+        fontSize=24,
+        textColor=colors.HexColor('#2B6CB0'),
+        alignment=TA_CENTER,
+        spaceAfter=30,
+        fontName=bold_font,
+        leading=28.8
+    )
+    
+    # Heading style
+    custom_styles['heading'] = ParagraphStyle(
+        'CustomHeading',
+        parent=custom_styles['Normal'],  # Changed parent to our custom Normal
+        fontSize=26,
+        textColor=colors.HexColor('#1a1a1a'),
+        spaceBefore=20,
+        spaceAfter=15,
+        fontName=bold_font,
+        leading=40.5,
+        alignment=TA_JUSTIFY
+    )
+    
+    # Subheading style
+    custom_styles['subheading'] = ParagraphStyle(
+        'CustomSubheading',
+        parent=custom_styles['Normal'],  # Changed parent to our custom Normal
+        fontSize=12,
+        textColor=colors.HexColor('#4A5568'),
+        spaceBefore=15,
+        spaceAfter=10,
+        fontName=bold_font,
+        leading=18.2,
+        alignment=TA_JUSTIFY
+    )
+    
+    # Content style
+    custom_styles['content'] = ParagraphStyle(
+        'CustomContent',
+        parent=custom_styles['Normal'],  # Changed parent to our custom Normal
+        fontSize=10,
+        textColor=colors.HexColor('#1a1a1a'),
+        alignment=TA_JUSTIFY,
+        spaceBefore=6,
+        spaceAfter=6,
+        fontName=base_font,
+        leading=15.4
+    )
+    
+    # Bullet style
+    custom_styles['bullet'] = ParagraphStyle(
+        'CustomBullet',
+        parent=custom_styles['Normal'],  # Changed parent to our custom Normal
+        fontSize=10,
+        textColor=colors.HexColor('#1a1a1a'),
+        leftIndent=20,
+        firstLineIndent=0,
+        fontName=base_font,
+        leading=15.4,
+        alignment=TA_JUSTIFY
+    )
+    
+    # Add any additional required style variations
+    custom_styles['BodyText'] = custom_styles['Normal']
+    custom_styles['bodytext'] = custom_styles['Normal']
+    
+    return custom_styles
+def clean_text(text):
+    """Clean and format text by removing HTML tags and normalizing line breaks"""
+    if not text:
+        return ""
+    
+    # Remove HTML tags while preserving line breaks
+    text = re.sub(r'<br\s*/?>', '\n', text)  # Convert <br> to newlines
+    text = re.sub(r'<para>', '', text)        # Remove <para> tags
+    text = re.sub(r'</para>', '', text)       # Remove </para> tags
+    text = re.sub(r'<[^>]+>', '', text)       # Remove any other HTML tags
+    
+    # Remove style tags
+    text = re.sub(r'<userStyle>.*?</userStyle>', '', text)
+    
+    # Remove Markdown formatting while preserving structure
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # Bold
+    text = re.sub(r'\*(.*?)\*', r'\1', text)      # Italic
+    text = re.sub(r'_(.*?)_', r'\1', text)        # Underscore
+    
+    # Improve spacing around punctuation
+    text = re.sub(r':(?!\s)', ': ', text)         # Add space after colons
+    text = re.sub(r'\s+([.,;!?])', r'\1', text)   # Remove space before punctuation
+    text = re.sub(r'([.,;!?])(?!\s)', r'\1 ', text)  # Add space after punctuation
+    
+    # Handle multiple newlines
+    text = re.sub(r'\n\s*\n', '\n\n', text)  # Normalize multiple newlines to double
+    text = text.replace('\r\n', '\n')         # Normalize Windows line endings
+    
+    # Handle bullet points and dashes
+    lines = text.split('\n')
+    processed_lines = []
+    for line in lines:
+        line = line.strip()
+        if line.startswith(('-', '•', '*')):
+            line = '• ' + line[1:].strip()  # Normalize bullet points
+        processed_lines.append(line)
+    
+    text = '\n'.join(processed_lines)
+    
+    return text.strip()
+
+def process_content(content, styles, elements):
+    """Process content with improved handling of lists and formatting"""
+    if not content:
         return
-    paragraphs = []
+    
+    # Clean the content first
+    content = clean_text(content)
+    
+    # Split content into sections
+    sections = content.split('\n')
     current_paragraph = []
     
-    # Split content into lines and process
-    lines = content.strip().split('\n') if content else []
-    for i, line in enumerate(lines):
-        clean_line = clean_text(line)  # Ensure clean_text handles None safely
-        if not clean_line:
+    i = 0
+    while i < len(sections):
+        line = sections[i].strip()
+        
+        # Skip empty lines
+        if not line:
+            if current_paragraph:
+                para_text = ' '.join(current_paragraph)
+                elements.append(Paragraph(para_text, styles['content']))
+                elements.append(Spacer(1, 0.1*inch))
+                current_paragraph = []
+            i += 1
+            continue
+        
+        # Handle headings
+        if line.startswith('###') and not line.startswith('####'):
+            if current_paragraph:
+                para_text = ' '.join(current_paragraph)
+                elements.append(Paragraph(para_text, styles['content']))
+                current_paragraph = []
+            
+            heading_text = line.replace('###', '').strip()
+            elements.append(Spacer(1, 0.3*inch))
+            elements.append(Paragraph(heading_text, styles['subheading']))
+            elements.append(Spacer(1, 0.15*inch))
+            
+        elif line.startswith('####'):
+            if current_paragraph:
+                para_text = ' '.join(current_paragraph)
+                elements.append(Paragraph(para_text, styles['content']))
+                current_paragraph = []
+            
+            subheading_text = line.replace('####', '').strip()
+            elements.append(Spacer(1, 0.2*inch))
+            elements.append(Paragraph(subheading_text, styles['subheading']))
+            elements.append(Spacer(1, 0.1*inch))
+            
+        # Handle bullet points
+        elif line.startswith('•'):
+            if current_paragraph:
+                para_text = ' '.join(current_paragraph)
+                elements.append(Paragraph(para_text, styles['content']))
+                current_paragraph = []
+            
+            bullet_text = line[1:].strip()
+            elements.append(Paragraph(bullet_text, styles['bullet']))
+            
+        # Handle tables
+        elif '|' in line:
+            if current_paragraph:
+                para_text = ' '.join(current_paragraph)
+                elements.append(Paragraph(para_text, styles['content']))
+                current_paragraph = []
+            
+            # Collect table lines
+            table_lines = [line]
+            while i + 1 < len(sections) and '|' in sections[i + 1]:
+                i += 1
+                table_lines.append(sections[i].strip())
+            
+            # Process table
+            if table_lines:
+                process_table_content(table_lines, styles, elements)
+                
+        else:
+            # Handle bold text and normal content
+            processed_line = line
+            if '**' in processed_line:
+                processed_line = re.sub(r'\*\*(.*?)\*\*', lambda m: f'<b>{m.group(1)}</b>', processed_line)
+            
+            current_paragraph.append(processed_line)
+        
+        i += 1
+    
+    # Handle any remaining paragraph content
+    if current_paragraph:
+        para_text = ' '.join(current_paragraph)
+        elements.append(Paragraph(para_text, styles['content']))
+        elements.append(Spacer(1, 0.1*inch))
+def create_formatted_table(table_data, styles):
+    """Create a professionally formatted table with consistent styling"""
+    # Ensure all rows have the same number of columns
+    max_cols = max(len(row) for row in table_data)
+    table_data = [row + [''] * (max_cols - len(row)) for row in table_data]
+    
+    # Calculate dynamic column widths based on content length
+    total_width = 6.5 * inch
+    col_widths = []
+    
+    if max_cols > 1:
+        # Calculate max content length for each column
+        col_lengths = [0] * max_cols
+        for row in table_data:
+            for i, cell in enumerate(row):
+                content_length = len(str(cell))
+                col_lengths[i] = max(col_lengths[i], content_length)
+                
+        # Distribute widths proportionally based on content length
+        total_length = sum(col_lengths)
+        for length in col_lengths:
+            width = max((length / total_length) * total_width, inch)  # Minimum 1 inch
+            col_widths.append(width)
+            
+        # Adjust widths to fit page
+        scale = total_width / sum(col_widths)
+        col_widths = [w * scale for w in col_widths]
+    else:
+        col_widths = [total_width]
+    
+    # Create table with calculated widths
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    
+    # Define table style commands
+    style_commands = [
+        # Header styling
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E5E7EB')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#1F2937')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 15),
+        ('TOPPADDING', (0, 0), (-1, 0), 15),
+        
+        # Content styling
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#374151')),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 12),
+        ('TOPPADDING', (0, 1), (-1, -1), 12),
+        
+        # Grid styling
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E5E7EB')),
+        ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#2B6CB0')),
+        
+        # Alignment
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        
+        # Cell padding
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+    ]
+    
+    # Apply style commands
+    table.setStyle(TableStyle(style_commands))
+    
+    # Apply word wrapping
+    wrapped_data = []
+    for i, row in enumerate(table_data):
+        wrapped_row = []
+        for cell in row:
+            if isinstance(cell, (str, int, float)):
+                # Use content style for all cells except headers
+                style = styles['subheading'] if i == 0 else styles['content']
+                wrapped_cell = Paragraph(str(cell), style)
+            else:
+                wrapped_cell = cell
+            wrapped_row.append(wrapped_cell)
+        wrapped_data.append(wrapped_row)
+    
+    # Create final table with wrapped data
+    final_table = Table(wrapped_data, colWidths=col_widths, repeatRows=1)
+    final_table.setStyle(TableStyle(style_commands))
+    
+    return final_table
+
+def create_highlight_box(text, styles):
+    """Create a highlighted box with improved styling"""
+    content = Paragraph(f"• {text}", styles['content'])
+    
+    table = Table(
+        [[content]],
+        colWidths=[6*inch],
+        style=TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.white),
+            ('BORDER', (0,0), (-1,-1), 1, colors.black),
+            ('PADDING', (0,0), (-1,-1), 15),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('BOX', (0,0), (-1,-1), 2, colors.HexColor('#E2E8F0')),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 18),
+            ('TOPPADDING', (0,0), (-1,-1), 18),
+        ])
+    )
+    
+    return table
+
+def process_table_content(lines, styles, elements):
+    """Process table content with improved header handling"""
+    table_data = []
+    header_processed = False
+    
+    for line in lines:
+        if '-|-' in line:  # Skip separator lines
             continue
             
-        # Check for numbered points (e.g., 1., 2., etc.)
-        if re.match(r'^\d+\.', clean_line):
-            if current_paragraph:
-                paragraphs.append((' '.join(current_paragraph), 'normal', None))
-                current_paragraph = []
-            point_num = int(clean_line.split('.')[0])
-            point_content = clean_line[clean_line.find('.')+1:].strip()
-            paragraphs.append((point_content, 'highlight', point_num))
-        elif clean_line.startswith(('•', '-', '*')) or re.match(r'^\s+[•\-\*]', clean_line):
-            if current_paragraph:
-                paragraphs.append((' '.join(current_paragraph), 'normal', None))
-                current_paragraph = []
-            bullet_text = f"• {clean_line.lstrip('•-* ').strip()}"
-            paragraphs.append((bullet_text, 'bullet_main', None))
-        else:
-            current_paragraph.append(clean_line)
+        cells = [cell.strip() for cell in line.split('|')]
+        cells = [cell for cell in cells if cell]
+        
+        if cells:
+            # Handle cells with bold markers
+            cells = [re.sub(r'\*\*(.*?)\*\*', r'\1', cell) for cell in cells]
+            
+            # Create paragraphs with appropriate styles
+            if not header_processed:
+                cells = [Paragraph(str(cell), styles['subheading']) for cell in cells]
+                header_processed = True
+            else:
+                cells = [Paragraph(str(cell), styles['content']) for cell in cells]
+                
+            table_data.append(cells)
     
-    # Add any remaining paragraph
-    if current_paragraph:
-        paragraphs.append((' '.join(current_paragraph), 'normal', None))
-    
-    # Create styled elements
-    for text, style_type, point_num in paragraphs:
-        if style_type == 'highlight':
-            elements.extend([
-                Spacer(1, 12),
-                create_highlight_box(text, styles, point_num),
-                Spacer(1, 12)
-            ])
-        elif style_type.startswith('bullet_'):
-            elements.append(Paragraph(text, styles['bullet_main']))
-        else:
-            elements.extend([
-                Paragraph(text, styles['content']),
-                Spacer(1, 8)
-            ])
+    if table_data:
+        elements.append(Spacer(1, 0.2*inch))
+        table = create_formatted_table(table_data, styles)
+        elements.append(table)
+        elements.append(Spacer(1, 0.2*inch))
 
 def create_kerjayaku_info_page(styles):
     """Create the KerjayaKu information page"""
@@ -522,7 +709,7 @@ def create_contact_page(styles):
     
     return elements
 
-def generate_pdf(analysis1, analysis2, personal_info):
+def generate_pdf(summary,personality, analysis2, personal_info):
     """Generate PDF with enhanced formatting and highlight boxes."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -538,7 +725,8 @@ def generate_pdf(analysis1, analysis2, personal_info):
     elements = []
 
     # Check for None and provide fallback
-    analysis1 = analysis1 or "No analysis provided."
+    summary=summary
+    personality = personality
     analysis2 = analysis2 or "No recommendations available."
     personal_info = personal_info or {"name": "Unknown"}
 
@@ -547,13 +735,18 @@ def generate_pdf(analysis1, analysis2, personal_info):
     elements.append(PageBreak())
 
     # Initial Assessment Section
-    elements.append(Paragraph("Initial Assessment", styles['heading']))
-    process_section_content(analysis1, styles, elements)
+    elements.append(Paragraph("Profile Summary", styles['heading']))
+    process_content(summary, styles, elements)
+    elements.append(PageBreak())
+        
+    elements.append(Paragraph("Personality Assessment", styles['heading']))
+    process_content(personality, styles, elements)
     elements.append(PageBreak())
 
-    # Career Recommendations Section
-    elements.append(Paragraph("Career Recommendations", styles['heading']))
-    process_section_content(analysis2, styles, elements)
+    elements.append(Paragraph("Comprehensive Analysis", styles['heading']))
+    process_content(analysis2, styles, elements)
+    elements.append(PageBreak())
+
 
     # Contact Page
     elements.extend(create_contact_page(styles))
@@ -563,18 +756,6 @@ def generate_pdf(analysis1, analysis2, personal_info):
     
     buffer.seek(0)
     return buffer
-
-def clean_text(text):
-    """Clean text by thoroughly removing markdown formatting."""
-    if not text:
-        return ""
-    text = str(text)  # Ensure the input is a string
-    text = text.replace('### ', '').replace('###', '').replace('## ', '').replace('##', '')
-    text = text.replace('# ', '').replace('#', '').replace('- ', '').replace('**', '')
-    text = text.replace('*', '').replace('`', '').replace('_', ' ')
-    text = text.replace('....', '.').replace('...', '.').replace('..', '.')
-    return ' '.join(text.split()).strip()
-
 
 def create_dynamic_toc(elements, styles, content_sections):
     """Create dynamic table of contents with enhanced styling"""
@@ -1107,13 +1288,12 @@ def analyze_personality_with_gpt(responses, personal_info, api_key):
     dob = personal_info.get('dob', None)
     age = calculate_age(dob) if dob else "Unknown"
 
-    prompt = f"""As a career psychologist, analyze these personality assessment responses alongside the individual's profile:
+    prompt = f"""As a career psychologist, analyze these personality assessment responses alongside the individual's profile in 800 words and create a summary table in the end:
 
 PERSONAL PROFILE:
 - Name: {personal_info.get('name', 'N/A')}
 - Age: {age} years
 - Education: {personal_info.get('education', 'N/A')} in {personal_info.get('major', 'N/A')}
-- Current Status: {personal_info.get('current_status', 'N/A')}
 {format_status_details(personal_info.get('status_details', {}), personal_info.get('current_status', 'N/A'))}
 - Experience Level: {personal_info.get('experience', 'N/A')}
 - Languages: {format_languages(personal_info.get('languages', {}))}
@@ -1159,7 +1339,7 @@ def format_languages(languages):
     """Format language proficiencies"""
     return ", ".join([f"{lang} ({level})" for lang, level in languages.items()])
 def create_front_page(styles, personal_info):
-    """Create the front page of the report with user photo."""
+    """Create the front page of the report with user photo and additional details."""
     import os
     import tempfile
     from PIL import Image as PILImage
@@ -1201,22 +1381,29 @@ def create_front_page(styles, personal_info):
             # Save the image
             image.save(temp_path, 'JPEG')
             
-            # Create a row with photo and personal info side by side
-            info_table = Table(
-                [["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items())]],
-                colWidths=[1.5*inch, 3.5*inch],
+            # Create a table with photo on left and personal info on right
+            photo = Image(temp_path, width=1.5*inch, height=1.5*inch)
+            personal_details = Table(
+                [
+                    ["Name:", personal_info.get('name', 'Not provided')],
+                    ["Email:", personal_info.get('email', 'Not provided')],
+                    ["Phone:", personal_info.get('phone', 'Not provided')],
+                    ["Country:", personal_info.get('country', 'Not provided')],
+                    ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items())],
+                ],
+                colWidths=[1.5*inch, 4.5*inch],
                 style=TableStyle([
                     ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E2E8F0')),
-                    ('PADDING', (0, 0), (-1, -1), 6),
+                    ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
                     ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+                    ('PADDING', (0, 0), (-1, -1), 6),
                 ])
             )
             
-            # Create a table with photo on left and info on right
             combined_table = Table(
-                [[Image(temp_path, width=1.5*inch, height=1.5*inch), info_table]],
+                [[photo, personal_details]],
                 colWidths=[2*inch, 5*inch],
                 style=TableStyle([
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -1244,15 +1431,7 @@ def create_front_page(styles, personal_info):
                 Spacer(1, 0.3*inch),
                 Paragraph(f"for {personal_info['name']}", styles['heading']),
                 Spacer(1, 0.3*inch),
-                Table(
-                    [["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items())]],
-                    colWidths=[2*inch, 4*inch],
-                    style=TableStyle([
-                        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E2E8F0')),
-                        ('PADDING', (0, 0), (-1, -1), 6)
-                    ])
-                )
+                create_personal_details_table(personal_info, styles)
             ])
     else:
         # Layout without photo
@@ -1260,21 +1439,36 @@ def create_front_page(styles, personal_info):
             Spacer(1, 0.3*inch),
             Paragraph(f"for {personal_info['name']}", styles['heading']),
             Spacer(1, 0.3*inch),
-            Table(
-                [["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items())]],
-                colWidths=[2*inch, 4*inch],
-                style=TableStyle([
-                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E2E8F0')),
-                    ('PADDING', (0, 0), (-1, -1), 6)
-                ])
-            )
+            create_personal_details_table(personal_info, styles)
         ])
     
     if temp_path:
         st.session_state['temp_image_path'] = temp_path
         
     return elements
+
+
+def create_personal_details_table(personal_info, styles):
+    """Helper function to create a table for personal details."""
+    return Table(
+        [
+            ["Name:", personal_info.get('name', 'Not provided')],
+            ["Email:", personal_info.get('email', 'Not provided')],
+            ["Phone:", personal_info.get('phone', 'Not provided')],
+            ["Country:", personal_info.get('country', 'Not provided')],
+            ["Languages:", ", ".join(f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items())],
+        ],
+        colWidths=[1.5*inch, 4.5*inch],
+        style=TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+            ('PADDING', (0, 0), (-1, -1), 6),
+        ])
+    )
+
 
 def render_work_experience():
     """Render the work experience form with date ranges."""
@@ -1497,7 +1691,7 @@ def get_ai_analysis2(user_data, api_key):
         - Include detailed examples of situations where these traits are critical and explain potential gaps {name} might face.
         - Use a conversational and engaging tone, tailored to inspire action.
 
-    Provide actionable recommendations in each section and ensure the guidance aligns with {name}'s unique goals and background.
+    Provide actionable recommendations in each section and ensure the guidance aligns with {name}'s unique goals and background in 1500 words and must be put in a paragph and create a summary table.
     """
 
     # API call to OpenAI
@@ -1569,11 +1763,11 @@ def main():
     
     with st.sidebar:
         st.title("Settings")
-        api_key_input = st.text_input("OpenAI API Key", type="password", value=st.session_state.openai_api_key)
+        api_key_input = st.text_input("Secret Key", type="password", value=st.session_state.openai_api_key)
         if api_key_input:
             st.session_state.openai_api_key = api_key_input
         if not st.session_state.openai_api_key:
-            st.warning("Please enter your OpenAI API key to continue.")
+            st.warning("Please enter your Secret key to continue.")
             return
 
     st.title("KerjayaKu - AI-Powered Career Development Portal")
@@ -1598,6 +1792,12 @@ def main():
                             return
                     
                     st.session_state["personal_info"] = personal_info
+                    
+                    # Generate GPT-enhanced personal info summary
+                    with st.spinner("Processing personal information summary..."):
+                        summary = generate_personal_info_summary_with_gpt(personal_info, st.session_state.openai_api_key)
+                        st.session_state["personal_info_summary"] = summary
+                    
                     st.session_state.current_step = 1
                     st.success("Personal information submitted successfully!")
                     st.rerun()
@@ -1614,6 +1814,7 @@ def main():
             st.success("✓ Personal Information Completed")
             with st.expander("Review Personal Information"):
                 display_personal_info(st.session_state["personal_info"])
+                st.markdown(st.session_state["personal_info_summary"])
 
     # Step 2: Personality Assessment
     if st.session_state.current_step >= 1:
@@ -1632,7 +1833,7 @@ def main():
                     st.markdown(st.session_state["personality_assessment"]["analysis"])
 
 
-    # Step 4: Career Aspirations
+    # Step 3: Career Aspirations
     if st.session_state.current_step >= 2:
         with st.container():
             st.write("## Step 3: Career Aspirations")
@@ -1670,7 +1871,7 @@ def main():
             tabs = st.tabs(["Personal Info", "Personality", "Aspirations"])
             
             with tabs[0]:
-                display_personal_info(st.session_state["personal_info"])
+                st.write(st.session_state["personal_info_summary"])  # Display GPT-enhanced summary
             with tabs[1]:
                 st.markdown(st.session_state["personality_assessment"]["analysis"])
             with tabs[2]:
@@ -1682,6 +1883,7 @@ def main():
                 try:
                     with st.spinner("Generating your career analysis report..."):
                         pdf_buffer = generate_pdf(
+                            st.session_state["personal_info_summary"],
                             st.session_state["personality_assessment"]["analysis"],
                             st.session_state["final_analysis"],
                             st.session_state["personal_info"]
@@ -1697,6 +1899,47 @@ def main():
                 except Exception as e:
                     st.error(f"Error generating report: {str(e)}")
                     st.info("Please try again or contact support if the issue persists.")
+
+def generate_personal_info_summary_with_gpt(personal_info, api_key):
+    """
+    Generate a professional summary of personal information using GPT.
+    """
+    client = OpenAI(api_key=api_key)
+    
+    # Prepare the prompt
+    prompt = f"""
+    You are a career advisor tasked with summarizing the personal information of an individual for a career analysis report. Here's the profile:
+    
+    ### Personal Information:
+    - Name: {personal_info.get('name', 'N/A')}
+    - Email: {personal_info.get('email', 'N/A')}
+    - Phone: {personal_info.get('phone', 'N/A')}
+    - Country of Residence: {personal_info.get('country', 'N/A')}
+    
+    {"- Job Title: " + personal_info.get('status_details', {}).get('job_title', 'N/A') if personal_info.get('current_status') == "Working" else ""}
+    {"- Employment Type: " + personal_info.get('status_details', {}).get('employment_type', 'N/A') if personal_info.get('current_status') == "Working" else ""}
+    {"- Field of Study: " + personal_info.get('status_details', {}).get('field_of_study', 'N/A') if personal_info.get('current_status') == "Studying" else ""}
+    {"- Institution: " + personal_info.get('status_details', {}).get('institution_name', 'N/A') if personal_info.get('current_status') == "Studying" else ""}
+    
+    ### Language Proficiency:
+    {', '.join([f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items()])}
+    
+    Please create a professional and concise summary of this information in 800 words.
+    """
+    
+    try:
+        # Call GPT API
+        response = client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
+        )
+        
+        # Return GPT's response
+        return response.choices[0].message.content
+    
+    except Exception as e:
+        return f"Error generating summary: {str(e)}"
 
 def display_personal_info(info):
     """Helper function to display personal information"""
