@@ -583,7 +583,7 @@ def create_contact_page(styles):
     elements = []
     
     # Add a page break before contact page
-    elements.append(PageBreak())
+    # elements.append(PageBreak())
     
     # Create a colored background header
     elements.append(
@@ -1382,7 +1382,7 @@ def create_front_page(styles, personal_info):
             image.save(temp_path, 'JPEG')
             
             # Create a table with photo on left and personal info on right
-            photo = Image(temp_path, width=1.5*inch, height=1.5*inch)
+            photo = Image(temp_path, width=1.0*inch, height=1.0*inch)
             personal_details = Table(
                 [
                     ["Name:", personal_info.get('name', 'Not provided')],
