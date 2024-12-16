@@ -1924,7 +1924,7 @@ def generate_personal_info_summary_with_gpt(personal_info, api_key):
     ### Language Proficiency:
     {', '.join([f"{lang} ({level})" for lang, level in personal_info.get('languages', {}).items()])}
     
-    Please create a professional and concise summary of this information in 800 words.
+    Please create a professional and concise summary of this information.
     """
     
     try:
